@@ -122,14 +122,109 @@ SELECT MIN(ppv), MAX(ppv), MIN(ph), MAX(ph) FROM medication;
 
 ---
 
-## 5. Lancer les tests
+## 5. Recherche de Médicaments (API REST — US05)
+
+Le microservice expose une API REST de recherche et d'autocomplétion sur le port **8081** (configurable via `SERVER_PORT`).
+
+### Démarrer le serveur API
+
+```powershell
+# Définir le mot de passe de la base
+$env:DB_PASSWORD="J37JO1LwooQWpaEJEuOi-89Iit8"
+
+# Lancer le microservice en mode normal (serveur web actif sur le port 8081)
+java -jar target/medication-service-0.0.1-SNAPSHOT.jar
+
+# Ou avec Maven :
+mvn spring-boot:run
+```
+
+### Endpoints disponibles
+
+- **Recherche** : `GET /api/medications/search?q={texte}&limit={n}`
+- **Swagger UI** : `http://localhost:8081/swagger-ui.html`
+- **Documentation OpenAPI** : `http://localhost:8081/v3/api-docs`
+- **Santé du service** : `http://localhost:8081/actuator/health`
+
+### Paramètres de recherche
+
+| Paramètre | Requis | Valeurs / Contraintes | Description |
+|-----------|--------|-----------------------|-------------|
+| `q` | **Oui** | Min 2, max 50 caractères (après trim) | Texte recherché (insensible à la casse) |
+| `limit` | Non | Min 1, max 20 (**10 par défaut**) | Nombre maximum de résultats |
+
+### Algorithme de pertinence
+
+La recherche utilise l'extension PostgreSQL `pg_trgm` et l'index GIN sur `nom` pour trier les résultats selon 3 niveaux de pertinence :
+1. **Préfixe** : Noms commençant par `q` (ex : `DOLIP...`)
+2. **Sous-chaîne** : Noms contenant `q`
+3. **Similarité trigramme** : Tolérance aux fautes de frappe légères (ex : `doliprne` $\rightarrow$ `DOLIPRANE`)
+
+### Exemples d'appels
+
+#### 1. Recherche par nom ("dolip")
+```powershell
+curl.exe -s "http://localhost:8081/api/medications/search?q=dolip&limit=2"
+```
+
+**Réponse (200 OK) :**
+```json
+[
+  {
+    "code": "6118000040279",
+    "nom": "DOLIPRANE",
+    "dci1": "PARACETAMOL",
+    "dosage1": 300.000,
+    "uniteDosage1": "MG",
+    "forme": "POUDRE POUR SOLUTION BUVABLE",
+    "presentation": "1 BOITE 12 SACHET",
+    "ppv": 12.85,
+    "tauxRemboursement": 70,
+    "princepsGenerique": "P"
+  },
+  {
+    "code": "6118000040293",
+    "nom": "DOLIPRANE",
+    "dci1": "PARACETAMOL",
+    "dosage1": 150.000,
+    "uniteDosage1": "MG",
+    "forme": "SUPPOSITOIRE",
+    "presentation": "1 BOITE 10 SUPPOSITOIRE",
+    "ppv": 9.70,
+    "tauxRemboursement": 70,
+    "princepsGenerique": "P"
+  }
+]
+```
+
+#### 2. Tolérance aux fautes de frappe ("doliprne")
+```powershell
+curl.exe -s "http://localhost:8081/api/medications/search?q=doliprne&limit=1"
+```
+
+#### 3. Paramètre invalide (< 2 caractères)
+```powershell
+curl.exe -s "http://localhost:8081/api/medications/search?q=a"
+```
+
+**Réponse (400 Bad Request) :**
+```json
+{
+  "timestamp": "2026-10-06T20:59:39.347620900Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Le paramètre de recherche 'q' doit contenir au moins 2 caractères.",
+  "path": "/api/medications/search"
+}
+```
+
+---
+
+## 6. Lancer les tests
 
 ```bash
-# Tests d'intégration Testcontainers (nécessite Docker)
+# Tests unitaires et d'intégration Testcontainers (22 tests au total)
 mvn test
-
-# Tests uniquement
-mvn test -pl medication-service
 ```
 
 ---
