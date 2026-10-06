@@ -1,0 +1,25 @@
+# Fichiers d'environnement (ne jamais commiter)
+infra/.env
+.env
+
+# Fichiers Java / Maven
+target/
+*.class
+*.jar
+*.war
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
