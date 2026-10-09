@@ -7,3 +7,21 @@
    (ex: `medication-service`, `medication_db`), et changez le port (8082, 8083...).
 4. Renommez le dossier `com/dwadispo/servicetemplate` en `com/dwadispo/votreservice`.
 5. Ouvrez la classe principale et mettez à jour son nom de package et de classe.
+
+## Lancer le socle technique (Eureka + Gateway)
+
+```powershell
+docker compose up --build
+```
+
+Cela démarre deux services :
+- **eureka-server** sur http://localhost:8761 (annuaire des microservices)
+- **api-gateway** sur http://localhost:8080 (point d'entrée qui route vers les services)
+
+Vérifiez que tout fonctionne en ouvrant http://localhost:8761 : 
+API-GATEWAY doit apparaître dans la liste, avec le statut UP.
+
+Pour arrêter :
+```powershell
+docker compose down
+```
