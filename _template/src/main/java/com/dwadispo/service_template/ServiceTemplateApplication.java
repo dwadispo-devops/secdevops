@@ -1,13 +1,13 @@
-package com.dwadispo.api_gateway;
+package com.dwadispo.service_template;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class ApiGatewayApplication {
+public class ServiceTemplateApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(ApiGatewayApplication.class, args);
+		SpringApplication.run(ServiceTemplateApplication.class, args);
 	}
 
 }
