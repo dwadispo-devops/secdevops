@@ -1,8 +1,3 @@
-# MédiDispo / SecDevOps-Projet
-
-Plateforme de réservation de médicaments en pharmacie, avec scan d'ordonnance par IA.
-Architecture microservices (Spring Boot), méthode Scrum, CI/CD GitLab.
-
 ## Créer un nouveau microservice
 
 1. Copiez le dossier `_template/` et renommez la copie avec le nom du service 
@@ -29,17 +24,4 @@ API-GATEWAY doit apparaître dans la liste, avec le statut UP.
 Pour arrêter :
 ```powershell
 docker compose down
-```
-
-## Structure du projet
-
-```
-secdevops/
-  ├── eureka-server/      (annuaire des microservices)
-  ├── api-gateway/        (passerelle API, point d'entrée)
-  ├── _template/           (modèle pour créer un nouveau microservice)
-  ├── auth-service/        (comptes, connexion)
-  ├── pharmacy-service/    (pharmacies, recherche)
-  ├── docker-compose.yml
-  └── README.md
 ```
