@@ -1,0 +1,10 @@
+target/
+.idea/
+*.iml
+.vscode/
+.DS_Store
+# Secrets : ne jamais commiter la clé API
+.env
+*.env
+!.env.example
+__pycache__/
