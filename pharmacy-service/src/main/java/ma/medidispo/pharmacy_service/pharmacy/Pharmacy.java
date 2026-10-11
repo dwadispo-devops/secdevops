@@ -36,16 +36,31 @@ public class Pharmacy {
     @Column(nullable = false)
     private String source = "REGISTERED";
 
+    @Column(name = "license_number", unique = true)
+    private String licenseNumber;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
     protected Pharmacy() {}
 
+    // Constructeur existant (import OSM, utilisé par US04) - inchangé
     public Pharmacy(String name, String address, String phone, String openingHours,
                     double latitude, double longitude, Long osmId, String source) {
         this.name = name; this.address = address; this.phone = phone;
         this.openingHours = openingHours; this.latitude = latitude;
         this.longitude = longitude; this.osmId = osmId; this.source = source;
+    }
+
+    // Nouveau constructeur (inscription par un pharmacien, US03)
+    public Pharmacy(String name, String address, String phone, String openingHours,
+                    double latitude, double longitude, String licenseNumber) {
+        this.name = name; this.address = address; this.phone = phone;
+        this.openingHours = openingHours; this.latitude = latitude;
+        this.longitude = longitude;
+        this.licenseNumber = licenseNumber;
+        this.source = "REGISTERED";
+        this.status = "PENDING";
     }
 
     public UUID getId() { return id; }
@@ -58,5 +73,6 @@ public class Pharmacy {
     public double getLongitude() { return longitude; }
     public String getStatus() { return status; }
     public String getSource() { return source; }
+    public String getLicenseNumber() { return licenseNumber; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
 }
