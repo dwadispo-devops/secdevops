@@ -16,3 +16,4 @@ docker compose ps
 - Arrêter : `docker compose down` (les données sont conservées dans un volume)
 - Tout effacer, y compris les données : `docker compose down -v`
 - Le fichier `.env` n'est jamais versionné ; seul `.env.example` l'est.
+- Le premier démarrage d'auth-service prend 30 à 40 secondes : suivre avec `docker compose logs -f auth-service` et attendre la ligne `Started AuthServiceApplication` avant de tester.
