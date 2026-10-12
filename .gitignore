@@ -7,6 +7,7 @@ application-local.properties
 id_rsa*
 id_ed25519*
 *.log
+.idea/
 target/
 .m2/
 .npm/
