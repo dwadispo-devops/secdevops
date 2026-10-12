@@ -38,3 +38,17 @@ test:
     when: always
     reports:
       junit: "**/target/surefire-reports/TEST-*.xml"
+
+frontend-build:
+  stage: build
+  image: node:22
+  variables:
+    npm_config_cache: "$CI_PROJECT_DIR/.npm"
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-npm"
+    paths:
+      - .npm
+  script:
+    - cd frontend
+    - npm ci
+    - npm run build
