@@ -1,0 +1,55 @@
+server:
+  port: ${SERVER_PORT:8085}
+
+spring:
+  application:
+    name: prescription-service
+  config:
+    # Charge le fichier .env local s'il existe (pratique en dev ; ignoré par Git)
+    import: "optional:file:.env[.properties]"
+  servlet:
+    multipart:
+      # RG05 : taille <= 5 Mo (la vérification fine est faite aussi dans FileValidator)
+      max-file-size: 5MB
+      max-request-size: 6MB
+  ai:
+    model:
+      # Modèle de chat actif : google-genai (Gemini, défaut) ou ollama (profil "ollama")
+      chat: google-genai
+      embedding: none
+    google:
+      genai:
+        # Clé Google AI Studio, fournie par variable d'environnement (jamais dans le code)
+        api-key: ${GEMINI_API_KEY:}
+        chat:
+          options:
+            model: ${GEMINI_MODEL:gemini-3.8-flash}
+            temperature: 0.0
+            # Raisonnement réduit : la lecture d'une ordonnance n'en a pas besoin (ENF02 : < 15 s)
+            thinking-level: ${GEMINI_THINKING_LEVEL:LOW}
+
+prescription:
+  reading:
+    # Côté le plus long de l'image envoyée à l'IA (compromis lisibilité / temps de réponse)
+    max-image-side: 1600
+    # Protection contre les "bombes de décompression"
+    max-pixels: 40000000
+    max-lines: 25
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    ma.ensa.pharma: INFO
