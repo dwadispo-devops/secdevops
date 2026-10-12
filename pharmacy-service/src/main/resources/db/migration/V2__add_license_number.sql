@@ -1,0 +1,1 @@
+ALTER TABLE pharmacies ADD COLUMN license_number VARCHAR(100) UNIQUE;
