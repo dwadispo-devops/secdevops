@@ -1,15 +1,13 @@
 package ma.medidispo.pharmacy_service.pharmacy;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/pharmacies")
@@ -30,4 +28,38 @@ public class PharmacyController {
         return repository.findNearby(lat, lng, radius, limit).stream()
                 .map(NearbyPharmacy::from).toList();
     }
+
+    // --- US03 : inscription d'une pharmacie par un pharmacien ---
+
+    @PostMapping
+    public ResponseEntity<Pharmacy> register(@Valid @RequestBody RegisterPharmacyRequest request) {
+        Pharmacy pharmacy = new Pharmacy(
+                request.name(),
+                request.address(),
+                request.phone(),
+                request.openingHours(),
+                request.latitude(),
+                request.longitude(),
+                request.licenseNumber()
+        );
+        Pharmacy saved = repository.save(pharmacy);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Pharmacy> getById(@PathVariable UUID id) {
+        return repository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    public record RegisterPharmacyRequest(
+            @NotBlank String name,
+            @NotBlank String address,
+            String phone,
+            String openingHours,
+            @DecimalMin("-90.0") @DecimalMax("90.0") double latitude,
+            @DecimalMin("-180.0") @DecimalMax("180.0") double longitude,
+            @NotBlank String licenseNumber
+    ) {}
 }
