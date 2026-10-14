@@ -17,7 +17,7 @@ build:
   stage: build
   parallel:
     matrix:
-      - SERVICE: [auth-service, pharmacy-service]
+      - SERVICE: [auth-service, pharmacy-service, prescription-service]
   script:
     - mvn $MAVEN_CLI_OPTS -f $SERVICE/pom.xml clean compile -DskipTests
 
@@ -31,7 +31,7 @@ test:
     TESTCONTAINERS_HOST_OVERRIDE: "docker"
   parallel:
     matrix:
-      - SERVICE: [auth-service, pharmacy-service]
+      - SERVICE: [auth-service, pharmacy-service, prescription-service]
   script:
     - mvn $MAVEN_CLI_OPTS -f $SERVICE/pom.xml test
   artifacts:
