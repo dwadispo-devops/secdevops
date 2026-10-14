@@ -124,7 +124,7 @@ SELECT MIN(ppv), MAX(ppv), MIN(ph), MAX(ph) FROM medication;
 
 ## 5. Recherche de Médicaments (API REST — US05)
 
-Le microservice expose une API REST de recherche et d'autocomplétion sur le port **8081** (configurable via `SERVER_PORT`).
+Le microservice expose une API REST de recherche et d'autocomplétion sur le port **8083** (configurable via `SERVER_PORT`).
 
 ### Démarrer le serveur API
 
@@ -132,7 +132,7 @@ Le microservice expose une API REST de recherche et d'autocomplétion sur le por
 # Définir le mot de passe de la base
 $env:DB_PASSWORD="J37JO1LwooQWpaEJEuOi-89Iit8"
 
-# Lancer le microservice en mode normal (serveur web actif sur le port 8081)
+# Lancer le microservice en mode normal (serveur web actif sur le port 8083)
 java -jar target/medication-service-0.0.1-SNAPSHOT.jar
 
 # Ou avec Maven :
@@ -142,9 +142,9 @@ mvn spring-boot:run
 ### Endpoints disponibles
 
 - **Recherche** : `GET /api/medications/search?q={texte}&limit={n}`
-- **Swagger UI** : `http://localhost:8081/swagger-ui.html`
-- **Documentation OpenAPI** : `http://localhost:8081/v3/api-docs`
-- **Santé du service** : `http://localhost:8081/actuator/health`
+- **Swagger UI** : `http://localhost:8083/swagger-ui.html`
+- **Documentation OpenAPI** : `http://localhost:8083/v3/api-docs`
+- **Santé du service** : `http://localhost:8083/actuator/health`
 
 ### Paramètres de recherche
 
@@ -164,7 +164,7 @@ La recherche utilise l'extension PostgreSQL `pg_trgm` et l'index GIN sur `nom` p
 
 #### 1. Recherche par nom ("dolip")
 ```powershell
-curl.exe -s "http://localhost:8081/api/medications/search?q=dolip&limit=2"
+curl.exe -s "http://localhost:8083/api/medications/search?q=dolip&limit=2"
 ```
 
 **Réponse (200 OK) :**
@@ -199,12 +199,12 @@ curl.exe -s "http://localhost:8081/api/medications/search?q=dolip&limit=2"
 
 #### 2. Tolérance aux fautes de frappe ("doliprne")
 ```powershell
-curl.exe -s "http://localhost:8081/api/medications/search?q=doliprne&limit=1"
+curl.exe -s "http://localhost:8083/api/medications/search?q=doliprne&limit=1"
 ```
 
 #### 3. Paramètre invalide (< 2 caractères)
 ```powershell
-curl.exe -s "http://localhost:8081/api/medications/search?q=a"
+curl.exe -s "http://localhost:8083/api/medications/search?q=a"
 ```
 
 **Réponse (400 Bad Request) :**
