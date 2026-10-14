@@ -1,0 +1,24 @@
+# ============================================================
+# Profil "import" — activé uniquement pour l'import CNOPS
+# ============================================================
+# Usage :
+#   mvn spring-boot:run -Dspring-boot.run.profiles=import
+# Ou :
+#   java -jar medication-service.jar --spring.profiles.active=import
+# ============================================================
+
+spring:
+  config:
+    activate:
+      on-profile: import
+
+  # Désactiver le serveur web pendant l'import
+  main:
+    web-application-type: none
+
+medication:
+  import:
+    # Chemin du fichier Excel dans le classpath
+    file: data/ref-des-medicaments-cnops-2014.xlsx
+    # Taille des lots pour batchUpdate
+    batch-size: 500
