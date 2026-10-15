@@ -54,12 +54,12 @@ public class PharmacyController {
     }
 
     public record RegisterPharmacyRequest(
-            @NotBlank String name,
-            @NotBlank String address,
-            String phone,
-            String openingHours,
+            @NotBlank @Size(max = 200) String name,
+            @NotBlank @Size(max = 300) String address,
+            @Size(max = 30) String phone,
+            @Size(max = 200) String openingHours,
             @DecimalMin("-90.0") @DecimalMax("90.0") double latitude,
             @DecimalMin("-180.0") @DecimalMax("180.0") double longitude,
-            @NotBlank String licenseNumber
+            @NotBlank @Size(max = 100) String licenseNumber
     ) {}
 }

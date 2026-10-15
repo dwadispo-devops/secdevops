@@ -10,6 +10,7 @@ import java.math.BigDecimal;
  * @param nom                Nom commercial
  * @param dci1               Dénomination Commune Internationale
  * @param dosage1            Dosage numérique (NULL si absent)
+ * @param dosageBrut         Texte source du dosage (NULL si cellule vide)
  * @param uniteDosage1       Unité du dosage
  * @param forme              Forme pharmaceutique
  * @param presentation       Conditionnement
@@ -31,5 +32,6 @@ public record Medication(
         BigDecimal ph,
         BigDecimal prixBr,
         String princepsGenerique,
-        Integer tauxRemboursement
+        Integer tauxRemboursement,
+        String dosageBrut
 ) {}

@@ -91,7 +91,7 @@ public class MedicationCsvReader {
         Integer taux = parseTaux(r.get("TAUX_REMBOURSEMENT"));
 
         return new Medication(code, nom, dci1, dosage1, unite, forme, presentation,
-                ppv, ph, prixBr, pg, taux);
+                ppv, ph, prixBr, pg, taux, r.get("DOSAGE1").isBlank() ? null : r.get("DOSAGE1"));
     }
 
     private BigDecimal parsePrixZeroToNull(String s) {

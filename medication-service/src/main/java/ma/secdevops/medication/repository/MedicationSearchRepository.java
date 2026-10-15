@@ -17,7 +17,7 @@ public class MedicationSearchRepository {
     private static final String SEARCH_SQL = """
             SELECT
                 code, nom, dci1, dosage1, unite_dosage1, forme, presentation,
-                ppv, taux_remboursement, princeps_generique,
+                ppv, taux_remboursement, princeps_generique, dosage_brut,
                 CASE
                     WHEN nom ILIKE ? THEN 1
                     WHEN nom ILIKE ? THEN 2
@@ -47,7 +47,8 @@ public class MedicationSearchRepository {
                 rs.getString("presentation"),
                 rs.getBigDecimal("ppv"),
                 taux,
-                rs.getString("princeps_generique")
+                rs.getString("princeps_generique"),
+                rs.getString("dosage_brut")
         );
     };
 

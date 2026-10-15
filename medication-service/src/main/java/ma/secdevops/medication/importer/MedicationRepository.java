@@ -25,12 +25,13 @@ public class MedicationRepository {
     private static final String UPSERT_SQL = """
             INSERT INTO medication (
                 code, nom, dci1, dosage1, unite_dosage1, forme, presentation,
-                ppv, ph, prix_br, princeps_generique, taux_remboursement, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                ppv, ph, prix_br, princeps_generique, taux_remboursement, dosage_brut, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ON CONFLICT (code) DO UPDATE SET
                 nom                 = EXCLUDED.nom,
                 dci1                = EXCLUDED.dci1,
                 dosage1             = EXCLUDED.dosage1,
+                dosage_brut         = EXCLUDED.dosage_brut,
                 unite_dosage1       = EXCLUDED.unite_dosage1,
                 forme               = EXCLUDED.forme,
                 presentation        = EXCLUDED.presentation,
@@ -94,6 +95,7 @@ public class MedicationRepository {
                             ps.setNull(10, java.sql.Types.NUMERIC);
                         }
                         ps.setString(11, m.princepsGenerique());
+                        ps.setString(13, m.dosageBrut());
                         // taux : peut être null
                         if (m.tauxRemboursement() != null) {
                             ps.setInt(12, m.tauxRemboursement());

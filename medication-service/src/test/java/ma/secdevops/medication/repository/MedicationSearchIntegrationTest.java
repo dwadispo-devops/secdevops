@@ -24,7 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MedicationSearchIntegrationTest {
 
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16")
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
+            System.getProperty("test.postgres.image", "postgres:16-bookworm"))
             .withDatabaseName("medication_search_test")
             .withUsername("test_user")
             .withPassword("test_password");

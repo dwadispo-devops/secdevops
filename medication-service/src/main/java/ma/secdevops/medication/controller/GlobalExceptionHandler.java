@@ -6,15 +6,17 @@ import ma.secdevops.medication.dto.ErrorResponse;
 import ma.secdevops.medication.exception.InvalidSearchParameterException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 
 /**
- * Gestionnaire global des exceptions pour uniformiser les réponses d'erreur HTTP.
+ * Gestionnaire global des exceptions pour uniformiser les rÃ©ponses d'erreur HTTP.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -30,7 +32,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleMissingParameter(
             MissingServletRequestParameterException ex,
             HttpServletRequest request) {
-        String message = String.format("Le paramètre obligatoire '%s' est manquant.", ex.getParameterName());
+        String message = String.format("Le paramÃ¨tre obligatoire '%s' est manquant.", ex.getParameterName());
         return buildResponse(HttpStatus.BAD_REQUEST, message, request.getRequestURI());
     }
 
@@ -38,7 +40,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleTypeMismatch(
             MethodArgumentTypeMismatchException ex,
             HttpServletRequest request) {
-        String message = String.format("Valeur invalide pour le paramètre '%s' : '%s'.", ex.getName(), ex.getValue());
+        String message = String.format("Valeur invalide pour le paramÃ¨tre '%s' : '%s'.", ex.getName(), ex.getValue());
         return buildResponse(HttpStatus.BAD_REQUEST, message, request.getRequestURI());
     }
 
@@ -47,6 +49,22 @@ public class GlobalExceptionHandler {
             ConstraintViolationException ex,
             HttpServletRequest request) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException ex,
+            HttpServletRequest request) {
+        ResponseEntity<ErrorResponse> response = buildResponse(
+                HttpStatus.METHOD_NOT_ALLOWED, "Methode HTTP non autorisee.", request.getRequestURI());
+        return new ResponseEntity<>(response.getBody(), ex.getHeaders(), response.getStatusCode());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(
+            NoResourceFoundException ex,
+            HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, "Ressource introuvable.", request.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)

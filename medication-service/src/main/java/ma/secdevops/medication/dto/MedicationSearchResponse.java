@@ -36,5 +36,8 @@ public record MedicationSearchResponse(
         Integer tauxRemboursement,
 
         @Schema(description = "P = Princeps, G = Générique", example = "P")
-        String princepsGenerique
+        String princepsGenerique,
+
+        @Schema(description = "Dosage source sans interpretation", example = "600 / 5")
+        String dosageBrut
 ) {}

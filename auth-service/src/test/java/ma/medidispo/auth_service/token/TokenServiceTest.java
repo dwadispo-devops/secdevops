@@ -72,6 +72,7 @@ class TokenServiceTest {
     void login_ok_renvoieLesDeuxTokens_etNeStockeQueLEmpreinte() {
         User u = user();
         when(userRepository.findByEmail("titima@test.ma")).thenReturn(Optional.of(u));
+        when(userRepository.findByIdForUpdate(u.getId())).thenReturn(Optional.of(u));
         when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TokenResponse response = service.login(new LoginRequest(" Titima@Test.ma ", "Secret123"));
@@ -110,7 +111,8 @@ class TokenServiceTest {
         User u = user();
         RefreshToken old = stored(u, Instant.now().plus(1, ChronoUnit.DAYS));
         when(refreshTokenRepository.findByTokenHash(TokenService.sha256("raw-token"))).thenReturn(Optional.of(old));
-        when(userRepository.findById(u.getId())).thenReturn(Optional.of(u));
+        when(refreshTokenRepository.findUserIdByTokenHash(TokenService.sha256("raw-token"))).thenReturn(Optional.of(u.getId()));
+        when(userRepository.findByIdForUpdate(u.getId())).thenReturn(Optional.of(u));
         when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TokenResponse response = service.refresh("raw-token");
@@ -125,6 +127,8 @@ class TokenServiceTest {
         User u = user();
         RefreshToken used = stored(u, Instant.now().plus(1, ChronoUnit.DAYS));
         used.setRevoked(true);
+        when(refreshTokenRepository.findUserIdByTokenHash(TokenService.sha256("raw-token"))).thenReturn(Optional.of(u.getId()));
+        when(userRepository.findByIdForUpdate(u.getId())).thenReturn(Optional.of(u));
         when(refreshTokenRepository.findByTokenHash(TokenService.sha256("raw-token"))).thenReturn(Optional.of(used));
 
         assertThrows(InvalidRefreshTokenException.class, () -> service.refresh("raw-token"));
@@ -137,10 +141,50 @@ class TokenServiceTest {
     void refresh_recuExpire_estRefuse() {
         User u = user();
         RefreshToken expired = stored(u, Instant.now().minus(1, ChronoUnit.DAYS));
+        when(refreshTokenRepository.findUserIdByTokenHash(TokenService.sha256("raw-token"))).thenReturn(Optional.of(u.getId()));
+        when(userRepository.findByIdForUpdate(u.getId())).thenReturn(Optional.of(u));
         when(refreshTokenRepository.findByTokenHash(TokenService.sha256("raw-token"))).thenReturn(Optional.of(expired));
 
         assertThrows(InvalidRefreshTokenException.class, () -> service.refresh("raw-token"));
 
         verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
+    void refresh_unknownToken_neverIssuesTokens() {
+        assertThrows(InvalidRefreshTokenException.class, () -> service.refresh("unknown"));
+        verify(userRepository, never()).findByIdForUpdate(any());
+        verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
+    void refresh_disabledUser_neverConsumesOrIssuesTokens() {
+        User u = user();
+        u.setEnabled(false);
+        RefreshToken token = stored(u, Instant.now().plus(1, ChronoUnit.DAYS));
+        when(refreshTokenRepository.findUserIdByTokenHash(TokenService.sha256("raw-token"))).thenReturn(Optional.of(u.getId()));
+        when(userRepository.findByIdForUpdate(u.getId())).thenReturn(Optional.of(u));
+        when(refreshTokenRepository.findByTokenHash(TokenService.sha256("raw-token"))).thenReturn(Optional.of(token));
+        assertThrows(InvalidRefreshTokenException.class, () -> service.refresh("raw-token"));
+        assertTrue(!token.isRevoked());
+        verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
+    void logout_revokesTokenUnderUserLock() {
+        User u = user();
+        RefreshToken token = stored(u, Instant.now().plus(1, ChronoUnit.DAYS));
+        when(refreshTokenRepository.findUserIdByTokenHash(TokenService.sha256("raw-token"))).thenReturn(Optional.of(u.getId()));
+        when(userRepository.findByIdForUpdate(u.getId())).thenReturn(Optional.of(u));
+        when(refreshTokenRepository.findByTokenHash(TokenService.sha256("raw-token"))).thenReturn(Optional.of(token));
+        service.logout("raw-token");
+        assertTrue(token.isRevoked());
+        verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
+    void logout_unknownToken_isIdempotent() {
+        service.logout("unknown");
+        verify(userRepository, never()).findByIdForUpdate(any());
     }
 }

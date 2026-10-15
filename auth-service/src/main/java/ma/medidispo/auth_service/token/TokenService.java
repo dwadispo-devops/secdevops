@@ -61,14 +61,24 @@ public class TokenService {
         if (found.isEmpty() || !passwordOk || !found.get().isEnabled()) {
             throw new InvalidCredentialsException();
         }
-        return issueTokens(found.get());
+        User lockedUser = userRepository.findByIdForUpdate(found.get().getId())
+                .filter(User::isEnabled)
+                .orElseThrow(InvalidCredentialsException::new);
+        return issueTokens(lockedUser);
     }
 
     // noRollbackFor : l'annulation de tous les reçus (alarme anti-vol)
     // doit être enregistrée même si on lève l'exception juste après.
     @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
     public TokenResponse refresh(String rawRefreshToken) {
-        RefreshToken stored = refreshTokenRepository.findByTokenHash(sha256(rawRefreshToken))
+        String hash = sha256(rawRefreshToken);
+        var userId = refreshTokenRepository.findUserIdByTokenHash(hash)
+                .orElseThrow(InvalidRefreshTokenException::new);
+        // All session mutations lock the user first, then read/update tokens.
+        // This also serializes replays of different tokens without lock-order inversion.
+        User user = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(InvalidRefreshTokenException::new);
+        RefreshToken stored = refreshTokenRepository.findByTokenHash(hash)
                 .orElseThrow(InvalidRefreshTokenException::new);
 
         if (stored.isRevoked()) {
@@ -80,9 +90,9 @@ public class TokenService {
             throw new InvalidRefreshTokenException();
         }
 
-        User user = userRepository.findById(stored.getUserId())
-                .filter(User::isEnabled)
-                .orElseThrow(InvalidRefreshTokenException::new);
+        if (!user.isEnabled()) {
+            throw new InvalidRefreshTokenException();
+        }
 
         stored.setRevoked(true); // rotation : l'ancien reçu est annulé
         return issueTokens(user);
@@ -90,8 +100,12 @@ public class TokenService {
 
     @Transactional
     public void logout(String rawRefreshToken) {
-        refreshTokenRepository.findByTokenHash(sha256(rawRefreshToken))
-                .ifPresent(t -> t.setRevoked(true));
+        String hash = sha256(rawRefreshToken);
+        refreshTokenRepository.findUserIdByTokenHash(hash).ifPresent(userId -> {
+            if (userRepository.findByIdForUpdate(userId).isPresent()) {
+                refreshTokenRepository.findByTokenHash(hash).ifPresent(t -> t.setRevoked(true));
+            }
+        });
     }
 
     private TokenResponse issueTokens(User user) {

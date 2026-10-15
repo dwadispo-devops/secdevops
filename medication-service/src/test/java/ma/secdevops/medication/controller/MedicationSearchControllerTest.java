@@ -18,6 +18,8 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -25,6 +27,39 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = {MedicationSearchController.class, GlobalExceptionHandler.class})
 class MedicationSearchControllerTest {
+
+    @Test
+    void compoundDosageIsReturnedWithoutChangingNumericField() throws Exception {
+        var item = new MedicationSearchResponse("6118000000001", "QA COMPOSE", "QA",
+                null, "MG / MG", "COMPRIME", "QA", null, 70, "G", "600 / 5");
+        when(service.search(eq("compose"), anyInt())).thenReturn(List.of(item));
+        mockMvc.perform(get("/api/medications/search").param("q", "compose"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].dosage1").value(nullValue()))
+                .andExpect(jsonPath("$[0].dosageBrut").value("600 / 5"))
+                .andExpect(jsonPath("$[0].uniteDosage1").value("MG / MG"));
+    }
+
+    @Test
+    void unknownRouteReturns404() throws Exception {
+        mockMvc.perform(get("/api/medications/route-inexistante"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.path").value("/api/medications/route-inexistante"));
+    }
+
+    @Test
+    void wrongMethodsReturn405WithAllowHeader() throws Exception {
+        for (var request : List.of(post("/api/medications/search"), put("/api/medications/search"))) {
+            mockMvc.perform(request.param("q", "dolip"))
+                    .andExpect(status().isMethodNotAllowed())
+                    .andExpect(header().string("Allow", containsString("GET")))
+                    .andExpect(jsonPath("$.status").value(405))
+                    .andExpect(jsonPath("$.path").value("/api/medications/search"));
+        }
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -103,7 +138,8 @@ class MedicationSearchControllerTest {
                 "1 BOITE 8 COMPRIME",
                 new BigDecimal("16.00"),
                 70,
-                "P"
+                "P",
+                "1000"
         );
 
         when(service.search(eq("dolip"), anyInt())).thenReturn(List.of(item));
@@ -117,6 +153,9 @@ class MedicationSearchControllerTest {
                 .andExpect(jsonPath("$[0].code").value("6118000040958"))
                 .andExpect(jsonPath("$[0].nom").value("DOLIPRANE 1000 MG"))
                 .andExpect(jsonPath("$[0].dci1").value("PARACETAMOL"))
+                .andExpect(jsonPath("$[0].dosage1").isNumber())
+                .andExpect(jsonPath("$[0].dosage1").value(1000.0))
+                .andExpect(jsonPath("$[0].dosageBrut").value("1000"))
                 .andExpect(jsonPath("$[0].ppv").value(16.00))
                 .andExpect(jsonPath("$[0].tauxRemboursement").value(70))
                 .andExpect(jsonPath("$[0].princepsGenerique").value("P"));

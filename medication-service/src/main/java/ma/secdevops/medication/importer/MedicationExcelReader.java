@@ -55,18 +55,22 @@ public class MedicationExcelReader {
      * @return liste des médicaments valides
      */
     public List<Medication> read(String classpathPath, ImportResult result) throws IOException {
-        List<Medication> medications = new ArrayList<>();
-        ClassPathResource resource = new ClassPathResource(classpathPath);
+        try (InputStream is = new ClassPathResource(classpathPath).getInputStream()) {
+            return read(is, result);
+        }
+    }
 
-        try (InputStream is = resource.getInputStream();
-             Workbook workbook = WorkbookFactory.create(is)) {
+    /** Reads an Excel stream through the production parser. */
+    public List<Medication> read(InputStream input, ImportResult result) throws IOException {
+        List<Medication> medications = new ArrayList<>();
+        try (Workbook workbook = WorkbookFactory.create(input)) {
 
             Sheet sheet = workbook.getSheetAt(0);
             int firstDataRow = sheet.getFirstRowNum() + 1; // ligne 0 = en-têtes
             int lastRow = sheet.getLastRowNum();
 
             log.info("Lecture du fichier Excel : {} ({} lignes de données attendues)",
-                    classpathPath, lastRow - firstDataRow + 1);
+                    "stream", lastRow - firstDataRow + 1);
 
             for (int i = firstDataRow; i <= lastRow; i++) {
                 Row row = sheet.getRow(i);
@@ -128,6 +132,10 @@ public class MedicationExcelReader {
         String presentation = nullIfBlank(readAsString(row, COL_PRESENTATION));
 
         // --- DOSAGE1 ---
+        Cell dosageCell = row.getCell(COL_DOSAGE1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        String dosageBrut = dosageCell != null && dosageCell.getCellType() == CellType.STRING
+                ? dosageCell.getStringCellValue() : readAsString(row, COL_DOSAGE1);
+        if (dosageBrut != null && dosageBrut.isBlank()) dosageBrut = null;
         BigDecimal dosage1 = parseDecimal(readAsString(row, COL_DOSAGE1));
 
         // --- Prix (0 → NULL) ---
@@ -145,7 +153,7 @@ public class MedicationExcelReader {
         Integer taux = parseTaux(readAsString(row, COL_TAUX), lineNum, code);
 
         return new Medication(code, nom, dci1, dosage1, uniteDosage1, forme, presentation,
-                ppv, ph, prixBr, pg, taux);
+                ppv, ph, prixBr, pg, taux, dosageBrut);
     }
 
     // -------------------------------------------------------------------------
@@ -216,7 +224,7 @@ public class MedicationExcelReader {
         try {
             return new BigDecimal(s);
         } catch (NumberFormatException e) {
-            log.warn("Impossible de parser le dosage '{}' en décimal, retourné NULL", s);
+            log.debug("Dosage non scalaire conservé en texte : {}", s);
             return null;
         }
     }
