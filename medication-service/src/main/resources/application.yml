@@ -1,0 +1,55 @@
+# ============================================================
+# medication-service — Configuration principale
+# ============================================================
+# Toutes les valeurs sensibles passent par des variables
+# d'environnement. Aucun secret ne doit être écrit ici.
+# ============================================================
+
+spring:
+  application:
+    name: medication-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:medication_db}
+    username: ${DB_USER:medication_user}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      connection-timeout: 30000
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+  # Flyway gère le schéma — JPA ne touche pas à la DDL
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+server:
+  port: ${SERVER_PORT:8083}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    ma.secdevops.medication: INFO
+    org.flywaydb: INFO

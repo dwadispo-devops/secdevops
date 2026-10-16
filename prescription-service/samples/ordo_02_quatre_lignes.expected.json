@@ -1,0 +1,26 @@
+{
+  "file": "ordo_02_quatre_lignes.png",
+  "expectedMedications": [
+    {
+      "name": "Amoxil",
+      "dosage": "250 mg/5 ml",
+      "form": "suspension buvable"
+    },
+    {
+      "name": "Efferalgan",
+      "dosage": "",
+      "form": "sirop"
+    },
+    {
+      "name": "Rhinathiol",
+      "dosage": "",
+      "form": "sirop"
+    },
+    {
+      "name": "Physiomer",
+      "dosage": "",
+      "form": "spray nasal"
+    }
+  ],
+  "mustNotContain": []
+}
