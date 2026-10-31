@@ -33,5 +33,16 @@ export const routes: Routes = [
     data: { titre: 'Connexion', texte: enConstruction },
     loadComponent: () => import('./pages/placeholder').then((m) => m.PlaceholderPage),
   },
+    {
+    path: 'verification',
+    title: 'Vérifier mon ordonnance – MédiDispo',
+    loadComponent: () => import('./pages/verification').then((m) => m.VerificationPage),
+  },
+  {
+    path: 'demande',
+    title: 'Demande de disponibilité – MédiDispo',
+    data: { titre: 'Demande de disponibilité', texte: enConstruction },
+    loadComponent: () => import('./pages/placeholder').then((m) => m.PlaceholderPage),
+  },
   { path: '**', redirectTo: '' },
 ];
