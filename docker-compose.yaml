@@ -53,11 +53,14 @@ services:
     depends_on:
       auth-db:
         condition: service_healthy
+      eureka-server:
+        condition: service_started
     environment:
       DB_URL: jdbc:postgresql://auth-db:5432/authdb
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
     ports:
       - "8081:8081"
     restart: unless-stopped
