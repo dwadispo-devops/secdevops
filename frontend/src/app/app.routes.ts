@@ -5,6 +5,11 @@ const enConstruction = 'Cette page sera développée dans un prochain sprint.';
 
 export const routes: Routes = [
   {
+    path: 'demande-disponibilite',
+    title: 'Demande de disponibilité - MédiDispo',
+    loadComponent: () => import('./pages/availability-request').then((m) => m.AvailabilityRequestPage),
+  },
+  {
     path: '',
     pathMatch: 'full',
     title: 'Accueil – DwaDispo',

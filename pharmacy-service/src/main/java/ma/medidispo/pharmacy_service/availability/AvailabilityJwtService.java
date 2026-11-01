@@ -38,6 +38,10 @@ public class AvailabilityJwtService {
             throw new SecurityException("Acces reserve aux patients");
         }
 
-        return UUID.fromString(claims.getSubject());
+        String subject = claims.getSubject();
+        if (subject == null || subject.isBlank()) {
+            throw new SecurityException("Identifiant patient manquant");
+        }
+        return UUID.fromString(subject);
     }
 }

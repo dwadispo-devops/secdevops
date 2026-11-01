@@ -15,7 +15,7 @@ public class AvailabilitySecurityConfig {
     @Order(1)
     SecurityFilterChain availabilityChain(HttpSecurity http) throws Exception {
         return http
-                .securityMatcher("/api/availability-requests/**")
+                .securityMatcher("/api/availability-requests", "/api/availability-requests/**")
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -24,12 +24,4 @@ public class AvailabilitySecurityConfig {
                 .build();
     }
 
-    @Bean
-    @Order(2)
-    SecurityFilterChain existingPharmacyChain(HttpSecurity http) throws Exception {
-        return http
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-                .build();
-    }
 }

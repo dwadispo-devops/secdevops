@@ -16,14 +16,20 @@ public class AvailabilityRequestController {
     private final AvailabilityRequestRepository repository;
     private final AvailabilityRequestItemRepository itemRepository;
     private final AvailabilityJwtService jwtService;
+    private final AvailabilityPharmacySearchService pharmacySearchService;
+    private final AvailabilityRequestPharmacyRepository pharmacyAssociationRepository;
 
     public AvailabilityRequestController(
             AvailabilityRequestRepository repository,
             AvailabilityRequestItemRepository itemRepository,
-            AvailabilityJwtService jwtService) {
+            AvailabilityJwtService jwtService,
+            AvailabilityPharmacySearchService pharmacySearchService,
+            AvailabilityRequestPharmacyRepository pharmacyAssociationRepository) {
         this.repository = repository;
         this.itemRepository = itemRepository;
         this.jwtService = jwtService;
+        this.pharmacySearchService = pharmacySearchService;
+        this.pharmacyAssociationRepository = pharmacyAssociationRepository;
     }
 
     @Transactional
@@ -42,11 +48,14 @@ public class AvailabilityRequestController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token JWT invalide ou expire");
         }
 
-        if (body == null || body.latitude() < -90 || body.latitude() > 90
+        if (body == null || body.latitude() == null || body.longitude() == null
+                || body.radiusM() == null
+                || !Double.isFinite(body.latitude()) || !Double.isFinite(body.longitude())
+                || body.latitude() < -90 || body.latitude() > 90
                 || body.longitude() < -180 || body.longitude() > 180
                 || body.radiusM() < 100 || body.radiusM() > 20000
                 || body.medications() == null || body.medications().isEmpty()
-                || body.medications().stream().anyMatch(m -> m == null || m.name() == null || m.name().isBlank() || m.name().length() > 200 || m.quantity() <= 0)) {
+                || body.medications().stream().anyMatch(m -> m == null || m.name() == null || m.name().isBlank() || m.name().length() > 200 || m.quantity() == null || m.quantity() <= 0)) {
             return ResponseEntity.badRequest().body("Position ou rayon invalide");
         }
 
@@ -57,9 +66,17 @@ public class AvailabilityRequestController {
             itemRepository.save(new AvailabilityRequestItem(request.getId(), medication.name(), medication.quantity()));
         }
 
+        var nearbyPharmacies = pharmacySearchService.findApprovedNearby(
+                body.latitude(), body.longitude(), body.radiusM());
+
+        for (var pharmacy : nearbyPharmacies) {
+            pharmacyAssociationRepository.save(
+                    new AvailabilityRequestPharmacy(request.getId(), pharmacy.getId()));
+        }
+
         return ResponseEntity.status(HttpStatus.CREATED).body(request);
     }
 
-    public record CreateRequest(double latitude, double longitude, int radiusM, List<Medication> medications) {}
-    public record Medication(String name, int quantity) {}
+    public record CreateRequest(Double latitude, Double longitude, Integer radiusM, List<Medication> medications) {}
+    public record Medication(String name, Integer quantity) {}
 }
