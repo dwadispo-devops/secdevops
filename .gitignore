@@ -49,3 +49,6 @@ Thumbs.db
 # ============================================================
 WRITEUP*.md
 /ref-des-medicaments-cnops-2014.xlsx
+
+# Données OpenStreetMap locales (ne pas commiter)
+data/osm/
