@@ -288,15 +288,6 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
         this.latitude = position.coords.latitude;
         this.longitude = position.coords.longitude;
         this.locationAccuracy = position.coords.accuracy;
-
-        console.log('Latitude :', this.latitude);
-        console.log('Longitude :', this.longitude);
-        console.log(
-          'Précision :',
-          this.locationAccuracy,
-          'mètres',
-        );
-
         this.map?.setView(
           [this.latitude, this.longitude],
           16,
