@@ -31,6 +31,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Testcontainers
 class AvailabilityRequestIntegrationTest {
+    @org.springframework.beans.factory.annotation.Value("${app.jwt.secret}")
+    private String jwtSecret;
+
 
     @Container
     @ServiceConnection
@@ -48,7 +51,7 @@ class AvailabilityRequestIntegrationTest {
                 .expiration(new java.util.Date(System.currentTimeMillis() + lifetimeMillis))
                 .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
                         io.jsonwebtoken.io.Decoders.BASE64.decode(
-                                "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=")))
+                                jwtSecret)))
                 .compact();
     }
 
@@ -257,7 +260,7 @@ class AvailabilityRequestIntegrationTest {
                 .expiration(new java.util.Date(System.currentTimeMillis() + 60000))
                 .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
                         io.jsonwebtoken.io.Decoders.BASE64.decode(
-                                "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA="))).compact();
+                                jwtSecret))).compact();
         var before = rowCounts();
         mvc.perform(post("/api/availability-requests").contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + jwt).content(VALID_BODY))
