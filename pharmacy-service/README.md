@@ -345,3 +345,42 @@ data/osm/                              données locales, non versionnées
 - Branches de travail créées à partir de `develop`, nommées `DEVOPS-XX-description`.
 - Merge requests vers `develop` ; `main` ne reçoit que `develop` à la fin du sprint.
 - Ne pas pousser directement sur `main` ni sur `develop`.
+
+## US09 : lancement local et demandes de disponibilite
+
+# pharmacy-service
+
+Pharmacies et recherche par rayon (US04 / EF15). Spring Boot 4, PostgreSQL 16 + PostGIS 3.5, Flyway.
+
+## Lancer en local
+
+1. Copier `.env.example` en `.env` et choisir un mot de passe.
+2. Démarrer la base (port 5433) :
+   `docker run -d --name pharmacy-db -e POSTGRES_DB=pharmacydb -e POSTGRES_USER=pharma -e POSTGRES_PASSWORD=<mot de passe> -p 127.0.0.1:5433:5432 -v pharmacy-db-data:/var/lib/postgresql/data postgis/postgis:16-3.5`
+3. `set -a; source .env; set +a; ./mvnw spring-boot:run` (port 8082).
+
+## API
+
+### PowerShell
+
+Depuis `pharmacy-service`, exécuter `./start-local.ps1` avec Java 21 et Docker actifs.
+Le script charge explicitement le fichier `.env` local (Spring Boot ne le charge pas
+automatiquement). Renseigner les quatre variables de `.env.example`, dont
+`JWT_SECRET` en base64, et les identifiants réellement créés dans PostgreSQL.
+Changer les variables `POSTGRES_*` d'un conteneur déjà initialisé ne recrée pas
+ses rôles ni ses bases. Ne pas supprimer son volume pour corriger une connexion.
+PostGIS doit être activé par un administrateur si le compte applicatif n'est pas
+superutilisateur. Pour lancer un JAR déjà compilé :
+`./start-local.ps1 -Jar target/pharmacy-service-0.0.1-SNAPSHOT.jar`.
+
+`GET /api/pharmacies/nearby?lat=&lng=&radius=2000&limit=50`
+Pharmacies approuvées dans le rayon (100 à 20 000 m), triées par distance en mètres. Paramètres invalides : 400.
+
+## Tests
+
+`./mvnw test` : Testcontainers démarre un PostGIS jetable, aucune base locale requise (Docker doit tourner).
+
+## Données
+
+Les pharmacies importées d'OpenStreetMap (ODbL) ont `source = 'OSM'`. Stocks et horaires sont simulés.
+Le proxy Angular transmet /api/** a la passerelle sur le port 8080 ; celle-ci route les demandes de disponibilite vers pharmacy-service (8082).
