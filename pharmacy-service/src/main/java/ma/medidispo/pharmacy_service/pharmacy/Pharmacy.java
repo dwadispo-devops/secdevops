@@ -42,6 +42,11 @@ public class Pharmacy {
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "owner_user_id")
+    private UUID ownerUserId;
+
+    public UUID getOwnerUserId() { return ownerUserId; }
+
     protected Pharmacy() {}
 
     // Constructeur pour les pharmacies importées depuis OpenStreetMap
