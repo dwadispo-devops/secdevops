@@ -51,4 +51,3 @@ public class StockJwtService {
         return UUID.fromString(subject);
     }
 }
-
