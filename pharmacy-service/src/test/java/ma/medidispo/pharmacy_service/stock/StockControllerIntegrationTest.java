@@ -25,6 +25,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Testcontainers
 class StockControllerIntegrationTest {
 
+    @org.springframework.beans.factory.annotation.Value("${app.jwt.secret}")
+    private String jwtSecret;
+
     @Container
     @ServiceConnection
     static PostgreSQLContainer postgres = new PostgreSQLContainer(
@@ -41,7 +44,7 @@ class StockControllerIntegrationTest {
             .expiration(new Date(System.currentTimeMillis() + 60000))
             .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
                 io.jsonwebtoken.io.Decoders.BASE64.decode(
-                    "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=")))
+                    jwtSecret)))
             .compact();
     }
 
@@ -52,6 +55,34 @@ class StockControllerIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\":\"AVAILABLE\"}"))
             .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void invalidSignatureReturns401() throws Exception {
+        String token = io.jsonwebtoken.Jwts.builder()
+            .subject(UUID.randomUUID().toString())
+            .claim("role", "PHARMACIEN")
+            .expiration(new Date(System.currentTimeMillis() + 60000))
+            .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(new byte[32]))
+            .compact();
+
+        mvc.perform(put("/api/pharmacies/{id}/stock/123456", UUID.randomUUID())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"AVAILABLE\"}"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "{}", "{\"status\":null}", "{\"status\":\"INVALID\"}", "{"
+    })
+    void invalidJsonReturns400ForAuthenticatedPharmacist(String body) throws Exception {
+        mvc.perform(put("/api/pharmacies/{id}/stock/123456", UUID.randomUUID())
+                .header("Authorization", "Bearer " + token(UUID.randomUUID(), "PHARMACIEN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isBadRequest());
     }
 
     @Test
