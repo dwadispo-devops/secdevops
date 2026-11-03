@@ -12,6 +12,19 @@ spring:
       # RG05 : taille <= 5 Mo (la vérification fine est faite aussi dans FileValidator)
       max-file-size: 5MB
       max-request-size: 6MB
+
+  # --- US06 : base de données (ordonnances + images chiffrées) ---
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5434/prescriptiondb}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate      # les tables sont créées par Flyway, Hibernate vérifie seulement
+    open-in-view: false
+  flyway:
+    enabled: true
+
   ai:
     model:
       # Modèle de chat actif : google-genai (Gemini, défaut) ou ollama (profil "ollama")
@@ -28,6 +41,11 @@ spring:
             # Raisonnement réduit : la lecture d'une ordonnance n'en a pas besoin (ENF02 : < 15 s)
             thinking-level: ${GEMINI_THINKING_LEVEL:LOW}
 
+# --- US06 : JWT, même clé que auth-service ---
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+
 prescription:
   reading:
     # Côté le plus long de l'image envoyée à l'IA (compromis lisibilité / temps de réponse)
@@ -35,6 +53,18 @@ prescription:
     # Protection contre les "bombes de décompression"
     max-pixels: 40000000
     max-lines: 25
+  # --- US06 : chiffrement des images (RG06). Générer : openssl rand -base64 32 ---
+  storage:
+    encryption-key: ${PRESCRIPTION_IMAGE_KEY}
+
+# --- US06 : inscription dans Eureka (la Gateway route via lb://prescription-service) ---
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
 
 management:
   endpoints:
