@@ -170,3 +170,85 @@ scripts/                  génération d'ordonnances fictives + évaluation
 - Pas encore enregistré dans Eureka : il suffira d'ajouter `spring-cloud-starter-netflix-eureka-client`
   avec le socle commun (TS01) et une route `/api/v1/prescriptions/**` dans l'API Gateway.
 - Le `Dockerfile` multi-stage fourni sert de base pour DO01 (Sprint 5).
+
+---
+
+# US06 — Envoi de l'ordonnance (DEVOPS-18)
+
+## À quoi sert ce service ?
+
+`prescription-service` gère les **ordonnances** des patients.
+
+- **TS05 (Sprint 1)** : lecture de l'ordonnance par l'IA (`/api/v1/prescriptions/read`).
+- **US06 (Sprint 2)** : le patient **photographie ou importe** son ordonnance depuis la page `/scan`.
+  Le service vérifie que c'est bien un patient connecté, qu'il a donné son **consentement**,
+  que le fichier est correct (JPG, PNG ou PDF, 5 Mo max), puis il **enregistre l'ordonnance**
+  et son **image chiffrée** dans la base de données.
+
+## Ce qui a été ajouté avec l'US06
+
+- Une base PostgreSQL `prescriptiondb` avec 2 tables : `prescription` et `prescription_image` (créées par Flyway).
+- La vérification du **JWT** (seul un `PATIENT` peut envoyer une ordonnance).
+- Le **chiffrement** de l'image (AES-256), car c'est une donnée de santé.
+- 3 routes :
+  - `POST /api/v1/prescriptions` → envoyer l'ordonnance
+  - `GET /api/v1/prescriptions/{id}/image` → revoir l'image
+  - `DELETE /api/v1/prescriptions/{id}/image` → supprimer l'image
+- Le service dans `docker-compose.yaml` et une route dans l'API Gateway.
+- La page Angular `/scan`.
+
+## Comment démarrer le service
+
+### 1. Préparer le fichier `.env` (une seule fois)
+
+Dans le fichier `.env` à la **racine du projet**, il faut ajouter la clé de chiffrement des images :
+
+```bash
+echo "PRESCRIPTION_IMAGE_KEY=$(openssl rand -base64 32)" >> .env
+```
+
+> ⚠️ Cette clé ne doit pas être partagée ni committée, et il ne faut plus la changer
+> (sinon les images déjà enregistrées ne peuvent plus être lues).
+
+### 2. Lancer avec Docker Compose
+
+Depuis la racine du projet :
+
+```bash
+docker compose up -d --build prescription-db prescription-service api-gateway auth-service
+```
+
+### 3. Vérifier que ça marche
+
+```bash
+docker compose ps
+curl http://localhost:8085/actuator/health
+```
+
+Résultat attendu : `{"status":"UP"}`.
+
+- Swagger : http://localhost:8085/swagger-ui.html
+- Par la Gateway : http://localhost:8080/api/v1/prescriptions
+
+> La clé Gemini (`GEMINI_API_KEY`) n'est pas obligatoire pour l'US06.
+> Sans elle, le service démarre quand même (seule la lecture IA `/read` est indisponible).
+
+### 4. Lancer les tests
+
+```bash
+cd prescription-service
+mvn verify
+```
+
+### 5. Tester la page `/scan`
+
+```bash
+cd frontend
+npm start
+```
+
+Puis ouvrir http://localhost:4200/scan.
+
+> La page de connexion n'existe pas encore : pour tester, il faut mettre un jeton de patient
+> dans le navigateur (F12 → Console) :
+> `sessionStorage.setItem('access_token', '<jeton>')`
