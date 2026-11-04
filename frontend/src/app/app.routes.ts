@@ -1,4 +1,3 @@
-
 import { Routes } from '@angular/router';
 
 const enConstruction = 'Cette page sera développée dans un prochain sprint.';
@@ -16,10 +15,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/home').then((m) => m.HomePage),
   },
   {
+    // US06 : photographier ou importer son ordonnance
     path: 'scan',
     title: 'Scanner une ordonnance – DwaDispo',
-    data: { titre: 'Scanner une ordonnance', texte: enConstruction },
-    loadComponent: () => import('./pages/placeholder').then((m) => m.PlaceholderPage),
+    loadComponent: () => import('./pages/scan').then((m) => m.ScanPage),
   },
   {
     path: 'medicaments',
