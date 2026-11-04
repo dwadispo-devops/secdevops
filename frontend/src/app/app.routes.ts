@@ -4,32 +4,36 @@ const enConstruction = 'Cette page sera développée dans un prochain sprint.';
 
 export const routes: Routes = [
   {
+    path: 'demande-disponibilite',
+    title: 'Demande de disponibilité - MédiDispo',
+    loadComponent: () => import('./pages/availability-request').then((m) => m.AvailabilityRequestPage),
+  },
+  {
     path: '',
     pathMatch: 'full',
-    title: 'Accueil – MédiDispo',
+    title: 'Accueil – DwaDispo',
     loadComponent: () => import('./pages/home').then((m) => m.HomePage),
   },
   {
+    // US06 : photographier ou importer son ordonnance
     path: 'scan',
-    title: 'Scanner une ordonnance – MédiDispo',
-    data: { titre: 'Scanner une ordonnance', texte: enConstruction },
-    loadComponent: () => import('./pages/placeholder').then((m) => m.PlaceholderPage),
+    title: 'Scanner une ordonnance – DwaDispo',
+    loadComponent: () => import('./pages/scan').then((m) => m.ScanPage),
   },
   {
     path: 'medicaments',
-    title: 'Médicaments – MédiDispo',
+    title: 'Médicaments – DwaDispo',
     data: { titre: 'Médicaments', texte: enConstruction },
     loadComponent: () => import('./pages/placeholder').then((m) => m.PlaceholderPage),
   },
   {
     path: 'pharmacies',
-    title: 'Pharmacies – MédiDispo',
-    data: { titre: 'Pharmacies', texte: enConstruction },
-    loadComponent: () => import('./pages/placeholder').then((m) => m.PlaceholderPage),
+    title: 'Pharmacies – DwaDispo',
+    loadComponent: () => import('./pages/pharmacies').then((m) => m.PharmaciesPage),
   },
   {
     path: 'connexion',
-    title: 'Connexion – MédiDispo',
+    title: 'Connexion – DwaDispo',
     data: { titre: 'Connexion', texte: enConstruction },
     loadComponent: () => import('./pages/placeholder').then((m) => m.PlaceholderPage),
   },

@@ -1,18 +1,24 @@
-# ---------- Étape 1 : la cuisine (compilation) ----------
-FROM eclipse-temurin:21-jdk AS build
+# ---------- Étape 1 : compilation (l'image Maven contient déjà Maven) ----------
+FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 
-# On copie d'abord ce qui change rarement (pom + wrapper Maven)
-# pour que Docker réutilise son cache et gagne du temps
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
-RUN chmod +x mvnw && ./mvnw -B -q dependency:go-offline
+# Réglage réseau optionnel (vide par défaut). Utile si l'IPv6 d'une machine est instable :
+#   docker compose build --build-arg JAVA_NET_OPTS="-Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Addresses=true"
+ARG JAVA_NET_OPTS=""
+ENV JAVA_TOOL_OPTIONS=${JAVA_NET_OPTS}
 
-# Puis le code source, qui change souvent
-COPY src/ src/
-RUN ./mvnw -B -q package -DskipTests
+COPY pom.xml .
+COPY src ./src
 
-# ---------- Étape 2 : la boîte repas (exécution) ----------
+# Garde-manger (cache) : ce que Maven télécharge est conservé entre deux builds.
+# 2 téléchargements à la fois, 60 s pour se connecter, 6 essais par fichier.
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B --no-transfer-progress clean package -DskipTests \
+      -Dmaven.artifact.threads=2 \
+      -Daether.connector.http.connectionTimeout=60000 \
+      -Daether.connector.http.retryHandler.count=6
+
+# ---------- Étape 2 : exécution ----------
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 

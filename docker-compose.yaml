@@ -1,20 +1,32 @@
+
 services:
+  # =========================
+  # EUREKA SERVER
+  # =========================
   eureka-server:
     build: ./eureka-server
     container_name: eureka-server
     ports:
       - "8761:8761"
+    restart: unless-stopped
 
+  # =========================
+  # API GATEWAY
+  # =========================
   api-gateway:
     build: ./api-gateway
     container_name: api-gateway
     ports:
       - "8080:8080"
     environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
     depends_on:
       - eureka-server
+    restart: unless-stopped
 
+  # =========================
+  # AUTH DATABASE
+  # =========================
   auth-db:
     image: postgres:16-bookworm
     environment:
@@ -32,20 +44,112 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # =========================
+  # AUTH SERVICE
+  # =========================
   auth-service:
     build: ./auth-service
     image: auth-service:dev
     depends_on:
       auth-db:
         condition: service_healthy
+      eureka-server:
+        condition: service_started
     environment:
       DB_URL: jdbc:postgresql://auth-db:5432/authdb
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
     ports:
       - "8081:8081"
     restart: unless-stopped
 
+  # =========================
+  # PHARMACY DATABASE (POSTGIS)
+  # =========================
+  pharmacy-db:
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_DB: pharmacydb
+      POSTGRES_USER: ${DB_USER:?definir DB_USER dans .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?definir DB_PASSWORD dans .env}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pharmacy-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d pharmacydb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # =========================
+  # PHARMACY SERVICE
+  # =========================
+  pharmacy-service:
+    build: ./pharmacy-service
+    image: pharmacy-service:dev
+    depends_on:
+      pharmacy-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://pharmacy-db:5432/pharmacydb
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+
+  # =========================
+  # PRESCRIPTION DATABASE (PostgreSQL 16 + pgvector, prêt pour le RAG de l'US07)
+  # =========================
+  prescription-db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: prescriptiondb
+      POSTGRES_USER: ${DB_USER:?definir DB_USER dans .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?definir DB_PASSWORD dans .env}
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - prescription-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d prescriptiondb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # =========================
+  # PRESCRIPTION SERVICE (US06 envoi + TS05/US07 lecture IA)
+  # =========================
+  prescription-service:
+    build: ./prescription-service
+    image: prescription-service:dev
+    depends_on:
+      prescription-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://prescription-db:5432/prescriptiondb
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
+      PRESCRIPTION_IMAGE_KEY: ${PRESCRIPTION_IMAGE_KEY:?definir PRESCRIPTION_IMAGE_KEY dans .env (openssl rand -base64 32)}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-cle-non-configuree}  # vraie cle dans .env pour /read (US07)
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    ports:
+      - "8085:8085"
+    restart: unless-stopped
+
 volumes:
   auth-db-data:
+  pharmacy-db-data:
+  prescription-db-data:
