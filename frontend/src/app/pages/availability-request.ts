@@ -71,6 +71,9 @@ interface Medication {
           required
         />
 
+        <label for="prescription-id">Référence de l’ordonnance à partager (facultatif)</label>
+        <input id="prescription-id" name="prescriptionId" [(ngModel)]="prescriptionId" placeholder="Identifiant obtenu après le scan" />
+        <p>En renseignant cette référence, vous partagez l’image et la lecture IA existante avec les pharmacies destinataires.</p>
         <div class="actions">
           <button type="submit" [disabled]="loading()">
             {{ loading() ? 'Envoi en cours...' : 'Envoyer ma demande' }}
@@ -101,6 +104,7 @@ export class AvailabilityRequestPage {
 
   medications: Medication[] = [{ name: '', quantity: 1 }];
   radiusM = 5000;
+  prescriptionId = '';
 
   latitude = signal<number | null>(null);
   longitude = signal<number | null>(null);
@@ -135,6 +139,9 @@ export class AvailabilityRequestPage {
 
   submit(): void {
     if (this.loading()) return;
+    if (this.prescriptionId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(this.prescriptionId.trim())) {
+      this.message.set('Référence d’ordonnance invalide.'); return;
+    }
 
     if (this.latitude() === null || this.longitude() === null) {
       this.message.set('Veuillez autoriser votre position GPS.');
@@ -170,7 +177,7 @@ export class AvailabilityRequestPage {
     this.loading.set(true);
     this.message.set('');
 
-    this.http.post(
+    this.http.post<{ id?: string }>(
       '/api/availability-requests',
       {
         latitude: this.latitude(),
@@ -180,7 +187,15 @@ export class AvailabilityRequestPage {
       },
       { headers: { Authorization: `Bearer ${token}` } }
     ).subscribe({
-      next: () => {
+      next: created => {
+        if (this.prescriptionId && created.id) {
+          this.http.put(`/api/availability-requests/${created.id}/prescription`,
+            { prescriptionId: this.prescriptionId.trim() }, { headers: { Authorization: `Bearer ${token}` } }).subscribe({
+              next: () => { this.loading.set(false); this.message.set('Demande envoyée avec son ordonnance.'); },
+              error: () => { this.loading.set(false); this.message.set(`Demande créée (${created.id}), mais ordonnance non associée. Vérifiez la référence et vos droits. Ne renvoyez pas la demande.`); },
+            });
+          return;
+        }
         this.loading.set(false);
         this.message.set('Votre demande a été envoyée avec succès !');
       },

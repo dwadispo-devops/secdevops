@@ -1,0 +1,8 @@
+{
+  "/api/auth/**": { "target": "http://127.0.0.1:18081", "secure": false, "changeOrigin": true },
+  "/api/pharmacies/**": { "target": "http://127.0.0.1:18082", "secure": false, "changeOrigin": true },
+  "/api/availability-requests": { "target": "http://127.0.0.1:18082", "secure": false, "changeOrigin": true },
+  "/api/availability-requests/**": { "target": "http://127.0.0.1:18082", "secure": false, "changeOrigin": true },
+  "/api/v1/prescriptions": { "target": "http://127.0.0.1:18085", "secure": false, "changeOrigin": true },
+  "/api/v1/prescriptions/**": { "target": "http://127.0.0.1:18085", "secure": false, "changeOrigin": true }
+}

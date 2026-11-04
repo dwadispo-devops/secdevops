@@ -98,6 +98,7 @@ services:
         condition: service_started
     environment:
       DB_URL: jdbc:postgresql://pharmacy-db:5432/pharmacydb
+      PRESCRIPTION_SERVICE_URL: http://prescription-service:8085
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}

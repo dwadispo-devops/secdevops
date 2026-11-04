@@ -28,6 +28,12 @@ export class PrescriptionService {
 
   private readonly apiUrl = '/api/v1/prescriptions';
 
+  readStored(id: string, token: string) {
+    return this.http.post(`${this.apiUrl}/${encodeURIComponent(id)}/read?consent=true`, null, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
   /** Envoie l'ordonnance (multipart : file + consent) avec le jeton du patient. */
   upload(file: File, consent: boolean, token: string): Observable<PrescriptionUploadResponse> {
     const form = new FormData();
