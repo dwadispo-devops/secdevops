@@ -26,6 +26,14 @@ spring:
     enabled: true
 
   ai:
+    # Peu de nouvelles tentatives : si Gemini est surchargé (503), le patient est vite
+    # redirigé vers la saisie manuelle au lieu d'attendre plusieurs minutes
+    retry:
+      max-attempts: 2
+      backoff:
+        initial-interval: 1s
+        multiplier: 2
+        max-interval: 4s
     model:
       # Modèle de chat actif : google-genai (Gemini, défaut) ou ollama (profil "ollama")
       chat: google-genai
@@ -36,10 +44,13 @@ spring:
         api-key: ${GEMINI_API_KEY:}
         chat:
           options:
-            model: ${GEMINI_MODEL:gemini-3.8-flash}
+            model: ${GEMINI_MODEL:gemini-3.5-flash}
             temperature: 0.0
             # Raisonnement réduit : la lecture d'une ordonnance n'en a pas besoin (ENF02 : < 15 s)
             thinking-level: ${GEMINI_THINKING_LEVEL:LOW}
+            # Réponse en JSON pur et place suffisante pour ne pas être coupée
+            response-mime-type: application/json
+            max-output-tokens: 4096
 
 # --- US06 : JWT, même clé que auth-service ---
 app:
@@ -53,6 +64,11 @@ prescription:
     # Protection contre les "bombes de décompression"
     max-pixels: 40000000
     max-lines: 25
+  # US07 : catalogue CNOPS exposé par medication-service (GET /api/medications/search)
+  catalog:
+    base-url: ${MEDICATION_SERVICE_URL:http://localhost:8083}
+    timeout: 3s
+    candidates: 10
   # --- US06 : chiffrement des images (RG06). Générer : openssl rand -base64 32 ---
   storage:
     encryption-key: ${PRESCRIPTION_IMAGE_KEY}

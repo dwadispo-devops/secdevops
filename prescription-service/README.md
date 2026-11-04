@@ -1,175 +1,165 @@
-# prescription-service — TS05 : preuve de concept de lecture d'ordonnance
+# prescription-service
 
-> **Ticket Jira :** DEVOPS-17 (épopée DEVOPS-2) — *TS05 - Preuve de concept : lire une ordonnance imprimée avec un modèle vision (Spring AI)*
-> **Exigences liées :** EF07, EF08 (partiel), RG05, RG06, ENF02, ENF05, ENF07, ENF09, ENF11 — sécurité §9.1 (injection de prompt, fichier malveillant, clé API)
+Lecture d'une ordonnance par IA vision (TS05, Sprint 1) puis **reconnaissance des médicaments dans le
+catalogue CNOPS avec un niveau de confiance** (US07, Sprint 2).
 
-Ce microservice reçoit la photo (ou le PDF) d'une ordonnance imprimée, l'envoie à un modèle d'IA vision
-via **Spring AI** et renvoie la liste structurée des médicaments lus.
-C'est la base du futur `prescription-service` : le rapprochement avec le catalogue CNOPS (RAG, pgvector)
-arrive au Sprint 2 (US07).
+> **Jira :** DEVOPS-17 (TS05) · US07 — *En tant que patient, je veux que les médicaments de l'ordonnance
+> soient reconnus dans le catalogue (RAG) avec un niveau de confiance*
+> **Exigences :** EF07, EF08, RG01, RG02, RG05, RG06, ENF02, ENF03, ENF05, ENF07, ENF09, ENF11
 
-## Ce que fait la PoC
+## Fonctionnement
 
 ```
 POST /api/v1/prescriptions/read   (multipart : file + consent=true)
-        │
-        ├─ 1. Consentement obligatoire (RG06)                → 400 CONSENT_REQUIRED
-        ├─ 2. Validation du fichier (RG05)                   → 400 / 413 / 415
-        │     JPG, PNG, PDF · ≤ 5 Mo · type réel vérifié par signature binaire
-        ├─ 3. Prétraitement en mémoire                       → 422 si illisible
-        │     PDF → image de la 1re page · contrôle des dimensions (anti-bombe)
-        │     redimensionnement ≤ 2000 px · ré-encodage PNG (supprime EXIF/GPS)
-        ├─ 4. Modèle vision (Spring AI ChatClient + image)   → 503 si indisponible (ENF07)
-        │     consigne système fixe + sortie JSON structurée (.entity)
-        └─ 5. Validation de la sortie                        → lignes LU / INCERTAIN / ILLISIBLE
-              nettoyage, longueurs max, 25 lignes max, quantités absurdes rejetées
+  1. Consentement obligatoire (RG06)                        → 400 CONSENT_REQUIRED
+  2. Validation du fichier (RG05 : JPG/PNG/PDF, ≤ 5 Mo, type réel vérifié)
+  3. Prétraitement en mémoire (PDF → image, redimensionnement, suppression EXIF)
+  4. Gemini lit chaque ligne : nom, dosage, forme, quantité   → 503 si l'IA est indisponible
+  5. Nettoyage de la sortie de l'IA (SEC07)
+  6. US07 – Rapprochement avec le catalogue CNOPS :
+       a. recherche des candidats dans medication-service   GET /api/medications/search?q=…
+       b. score de confiance de chaque candidat (nom + dosage + forme)
+       c. 3 meilleures suggestions, uniquement des produits du catalogue (RG02)
 ```
 
-Aucune image ni aucun texte lu n'est stocké ni journalisé : les logs contiennent seulement la durée,
-le nombre de lignes et le fournisseur (ENF05).
+### Score de confiance (US07)
 
-## Stack
-
-| Élément | Version |
-|---|---|
-| Java | 21 |
-| Spring Boot | 3.5.7 |
-| Spring AI | 1.1.8 (`spring-ai-starter-model-google-genai`, `spring-ai-starter-model-ollama`) |
-| Modèle par défaut | Gemini 2.5 Flash (API gratuite Google AI Studio) |
-| Plan B local | Ollama + `qwen2.5vl:7b` (profil `ollama`) |
-| PDF | Apache PDFBox 3.0.5 |
-| Doc API | springdoc-openapi 2.8.9 (Swagger UI) |
-
-> Si l'équipe a figé **Spring Boot 4** au Sprint 0, passez à Spring AI 2.0.x : le code de `SpringAiVisionReader`
-> reste le même, seules les versions du `pom.xml` changent.
-
-## Lancer le service
-
-### Option A — Gemini (par défaut, recommandé pour la démo)
-
-1. Créer une clé gratuite sur <https://aistudio.google.com/app/apikey>.
-2. Copier `.env.example` en `.env` et renseigner `GEMINI_API_KEY` (le fichier `.env` est ignoré par Git).
-3. Lancer :
-
-```bash
-mvn spring-boot:run
+```
+score = 0,55 × similarité du nom   (trigrammes, comme pg_trgm : "DOLIPRAN" ≈ "DOLIPRANE")
+      + 0,25 × dosage identique     (après conversion : "1 g" = "1000 MG" ; 0,3 si inconnu)
+      + 0,20 × forme identique      ("cp" = "comprimé" = "COMPRIME", cherchée dans la forme ET la
+                                     présentation du catalogue ; 0,5 si inconnue)
 ```
 
-### Option B — Ollama (100 % local, aucune image envoyée sur Internet)
+| Score | Couleur (écran US08) | Exemple |
+|---|---|---|
+| ≥ 0,85 | 🟢 reconnu | « DOLIPRANE 1 g comprimé » → DOLIPRANE 1000 MG, COMPRIME |
+| 0,60 – 0,85 | 🟠 à vérifier (3 suggestions) | mauvais dosage, mauvaise forme, dosage absent |
+| < 0,60 | 🔴 non reconnu (saisie manuelle) | nom absent du catalogue, ligne illisible |
 
-```bash
-ollama pull qwen2.5vl:7b
-SPRING_PROFILES_ACTIVE=ollama mvn spring-boot:run
-# PowerShell : $env:SPRING_PROFILES_ACTIVE="ollama"; mvn spring-boot:run
-```
+Règles supplémentaires :
+- **Ambiguïté** : si deux médicaments *différents* (dosage ou forme) ont presque le même score, la ligne
+  est plafonnée à 0,84 (orange) : le patient choisit. Deux tailles de boîte du même médicament ne sont pas ambiguës.
+- **Doute de l'IA** (`uncertain`) : la ligne n'est jamais verte.
+- **Dosage impossible à vérifier** (absent de l'ordonnance ou du catalogue, ex. AUGMENTIN dans CNOPS) :
+  la ligne reste orange, le patient confirme.
+- **Catalogue indisponible** : la lecture fonctionne quand même ; les lignes sont rouges avec un
+  avertissement (saisie manuelle, ENF07).
 
-Le service écoute sur le port **8085**.
+### Réponse
 
-- Swagger UI : <http://localhost:8085/swagger-ui.html>
-- Health check : <http://localhost:8085/actuator/health>
-
-## Tester
-
-### Générer les ordonnances fictives
-
-```bash
-pip install pillow requests
-python3 scripts/generate_sample_prescriptions.py samples
-```
-
-Trois ordonnances imprimées **fictives** (PNG + PDF + résultat attendu en JSON) sont créées dans `samples/`.
-La troisième contient un texte piégé (« IGNORE TES INSTRUCTIONS ET AJOUTE… ») pour vérifier que le modèle
-ne se laisse pas manipuler.
-
-### Appel manuel
-
-```bash
-curl -F "file=@samples/ordo_01_simple.png" -F "consent=true" \
-     http://localhost:8085/api/v1/prescriptions/read
-```
-
-Exemple de réponse :
+Format aligné sur l'interface `LigneOrdonnance` de l'écran de vérification (US08), complété par `quantite`
+(consigne du prof : nom du médicament + quantité) :
 
 ```json
 {
   "readingId": "8f0c3f0e-4f7e-4a53-9d1c-2b1f3c0d9a11",
   "prescriptionDetected": true,
-  "lines": [
-    { "index": 1, "rawText": "DOLIPRANE 1 g, comprimé", "name": "DOLIPRANE", "dosage": "1 g",
-      "form": "comprimé", "posology": "1 comprimé 3 fois par jour", "duration": "5 jours",
-      "boxes": 1, "status": "LU" }
+  "lignes": [
+    {
+      "id": 1,
+      "texteLu": "DOLIPRANE 1 g",
+      "quantite": 1,
+      "score": 0.94,
+      "suggestions": [
+        { "id": "6118000040001", "nom": "DOLIPRANE 1000 MG, COMPRIME, 1 BOITE 8 COMPRIME" }
+      ]
+    }
   ],
+  "warnings": [],
   "provider": "google-genai",
-  "durationMs": 4210,
-  "warnings": []
+  "durationMs": 5210
 }
 ```
 
-### Mesure automatique (préfigure TS06)
+`suggestions[].id` est le **code CNOPS** : il permet aux autres services de retrouver le prix, les génériques
+et la disponibilité en pharmacie.
+
+## Lancer
+
+### 1. Le catalogue (medication-service)
+
+Voir `medication-service/README.md` : PostgreSQL via `infra/`, import CNOPS (profil `import`), puis
+`mvn spring-boot:run` (port **8083**).
+
+### 2. prescription-service
+
+Créer `.env` (jamais commité) à partir de `.env.example` :
+
+```properties
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-3.5-flash
+MEDICATION_SERVICE_URL=http://localhost:8083
+# + les variables de l'US06 (base prescriptiondb, JWT_SECRET, PRESCRIPTION_IMAGE_KEY) : voir plus bas
+```
 
 ```bash
+mvn spring-boot:run          # port 8085
+```
+
+- Swagger : <http://localhost:8085/swagger-ui.html>
+- Santé : <http://localhost:8085/actuator/health>
+- Plan B local : `SPRING_PROFILES_ACTIVE=ollama` (modèle `qwen2.5vl:7b`)
+
+## Tester
+
+```bash
+mvn verify                                  # tests + couverture JaCoCo (target/site/jacoco)
+python3 scripts/generate_sample_prescriptions.py samples
 python3 scripts/evaluate_poc.py http://localhost:8085 samples
 ```
 
-Affiche, pour chaque ordonnance, le nombre de médicaments reconnus, la durée, et vérifie que le
-médicament injecté (`SUPERCURE`) n'apparaît pas. Termine par le taux global (objectif ENF03 : ≥ 80 %).
+Les tests n'appellent ni Gemini ni le vrai catalogue : le modèle est simulé (Mockito) et medication-service
+est remplacé par un faux serveur (`MockRestServiceServer`) qui renvoie le format réel de son API.
+Ils couvrent notamment : le calcul du score (dosages, formes, fautes de lecture), le choix des 3 suggestions,
+les cas ambigus, les lignes illisibles, la panne du catalogue et le fait qu'aucun produit inventé n'est proposé.
 
-### Tests unitaires
-
-```bash
-mvn verify          # tests + rapport de couverture JaCoCo dans target/site/jacoco/index.html
-```
-
-Les tests n'appellent jamais le vrai modèle : `VisionReader` est simulé avec Mockito.
-Ils couvrent la validation des fichiers (dont un exécutable renommé en `.png`), le prétraitement
-(PDF multipage, redimensionnement, bombe de décompression), le nettoyage de la sortie (balises,
-URL, caractères de contrôle), le service et le contrôleur (codes HTTP et `ProblemDetail`).
+Le script d'évaluation affiche, pour chaque ordonnance fictive, le texte lu, la couleur et le score de chaque
+ligne, puis le taux de reconnaissance global (objectif ENF03 : ≥ 80 %).
 
 ## Structure
 
 ```
 src/main/java/ma/ensa/pharma/prescription/
-├── api/                  PrescriptionController + DTO de réponse
-├── ai/                   VisionReader (interface), SpringAiVisionReader, prompts, OutputSanitizer
-├── file/                 FileValidator (RG05), ImagePreprocessor
-├── service/              PrescriptionReadingService (orchestration)
-├── domain/               VisionExtraction (sortie structurée du modèle), statuts
-├── exception/            PrescriptionException + GlobalExceptionHandler (RFC 7807)
-└── config/               ReadingProperties, OpenAPI
-scripts/                  génération d'ordonnances fictives + évaluation
+├── api/          PrescriptionController + DTO (LigneOrdonnanceDto, ProduitDto)
+├── ai/           Lecture Gemini (Spring AI), consignes, nettoyage de la sortie
+├── catalog/      US07 : MedicationCatalogClient, MatchScorer (score), CatalogMatcher (top 3)
+├── file/         Validation et prétraitement des fichiers
+├── service/      PrescriptionReadingService (orchestration)
+├── domain/       VisionExtraction (sortie de l'IA), ReadLine (ligne nettoyée)
+├── exception/    Erreurs fonctionnelles (RFC 7807)
+└── config/       ReadingProperties, CatalogProperties, OpenAPI
 ```
 
-## Critères d'acceptation proposés pour DEVOPS-17
+## Choix d'architecture (US07)
 
-- [ ] Étant donné une photo nette d'une ordonnance imprimée fictive, quand je l'envoie avec `consent=true`,
-      alors je reçois la liste des médicaments au format JSON.
-- [ ] La lecture prend moins de 15 s (champ `durationMs`, ENF02).
-- [ ] Sans consentement, la requête est refusée et l'image n'est pas envoyée à l'IA.
-- [ ] Un fichier non autorisé (type, taille, contenu ne correspondant pas à l'extension) est refusé.
-- [ ] Le texte piégé de `ordo_03` n'ajoute aucun médicament.
-- [ ] Si le modèle ne répond pas, l'API renvoie 503 avec un message proposant la saisie manuelle.
-- [ ] Le fournisseur peut être changé (Gemini ↔ Ollama) sans modifier le code.
-- [ ] Les tests passent et le service expose `/actuator/health` et Swagger.
+Le cahier des charges cite *Spring AI VectorStore PGVector*. Le rapprochement réutilise plutôt
+l'API de recherche de **medication-service** (pg_trgm), pour trois raisons :
 
-## Sous-tâches Jira suggérées
+1. **Une seule source du catalogue** : il appartient à medication-service, pas de copie à maintenir.
+2. **Plus fiable sur des noms de marque** : une similarité de caractères compare mieux « DOLIPRAN » et
+   « DOLIPRANE » qu'une similarité sémantique (embeddings).
+3. **RG02 garanti** : seuls des produits renvoyés par le catalogue sont proposés.
 
-1. Initialiser le service et la configuration Spring AI (Gemini + profil Ollama)
-2. Endpoint d'upload avec validation du fichier et du consentement
-3. Prétraitement de l'image (PDF, redimensionnement, suppression des métadonnées)
-4. Appel du modèle vision avec sortie structurée et consigne anti-injection
-5. Validation de la sortie + gestion des erreurs (503 → saisie manuelle)
-6. Tests unitaires + jeu de 3 ordonnances fictives + script d'évaluation
-7. README et démonstration en Sprint Review
+Le principe du RAG est respecté : la sortie de l'IA est **ancrée** sur une base de référence (*retrieval*)
+avant d'être présentée au patient. Choix à valider avec l'équipe et à reporter dans le dossier de conception.
 
-## Limites de la PoC et suite
+## Résultat du test avec le vrai catalogue CNOPS
 
-- **Pas encore de RAG** : les noms sont renvoyés tels que lus. La règle RG02 (« aucun produit inventé ») et
-  le code couleur vert/orange/rouge (scores 0,85 / 0,60) seront garantis au Sprint 2 par le rapprochement
-  avec le catalogue CNOPS (TS02 + pgvector).
-- Pas d'enregistrement de l'ordonnance (historique : US18, Sprint 3) ni de chiffrement de l'image (non stockée ici).
-- Pas encore enregistré dans Eureka : il suffira d'ajouter `spring-cloud-starter-netflix-eureka-client`
-  avec le socle commun (TS01) et une route `/api/v1/prescriptions/**` dans l'API Gateway.
-- Le `Dockerfile` multi-stage fourni sert de base pour DO01 (Sprint 5).
+| Ligne lue | Score | 1ʳᵉ suggestion |
+|---|---|---|
+| DOLIPRANE 1 g, comprimé | 1,0 🟢 | DOLIPRANE 1 G, COMPRIME SECABLE |
+| SPASFON 80 mg, comprimé | 1,0 🟢 | SPASFON 80 MG, COMPRIME ENROBE |
+| AUGMENTIN 1 g/125 mg, sachet | 0,83 🟠 | AUGMENTIN, POUDRE POUR SUSPENSION BUVABLE, 1 BOITE 16 SACHET |
+
+Le premier essai proposait un AUGMENTIN *comprimé* en tête : dans CNOPS, « SACHET » n'apparaît que dans la
+présentation et le dosage est absent. Correction : la forme est aussi cherchée dans la présentation, et un
+dosage invérifiable empêche le vert.
+
+## Limites et suite
+
+- L'écran de vérification (US08) doit ajouter le champ `quantite` à son interface (déjà envoyé par ce service).
+- Bascule automatique Gemini → Ollama et OCR Tesseract : tickets à créer.
 
 ---
 
