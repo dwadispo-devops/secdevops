@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { OrdonnanceService } from '../services/ordonnance';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -101,8 +102,10 @@ interface Medication {
 })
 export class AvailabilityRequestPage {
   private readonly http = inject(HttpClient);
+  private readonly ordonnance = inject(OrdonnanceService);
 
-  medications: Medication[] = [{ name: '', quantity: 1 }];
+  // US09 : reprend les médicaments confirmés à l'écran de vérification (US08)
+  medications: Medication[] = this.depuisOrdonnance();
   radiusM = 5000;
   prescriptionId = sessionStorage.getItem('last_prescription_id') ?? '';
 
@@ -110,6 +113,13 @@ export class AvailabilityRequestPage {
   longitude = signal<number | null>(null);
   loading = signal(false);
   message = signal('');
+
+  private depuisOrdonnance(): Medication[] {
+    const confirmes = this.ordonnance.lignes()
+      .filter(l => !l.supprimee && l.choix)
+      .map(l => ({ name: l.choix!.nom, quantity: 1 }));
+    return confirmes.length ? confirmes : [{ name: '', quantity: 1 }];
+  }
 
   addMedication(): void {
     this.medications.push({ name: '', quantity: 1 });
