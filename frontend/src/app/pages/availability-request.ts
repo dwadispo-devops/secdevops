@@ -117,7 +117,7 @@ export class AvailabilityRequestPage {
   private depuisOrdonnance(): Medication[] {
     const confirmes = this.ordonnance.lignes()
       .filter(l => !l.supprimee && l.choix)
-      .map(l => ({ name: l.choix!.nom, quantity: 1 }));
+      .map(l => ({ name: l.choix!.nom, quantity: l.quantite ?? 1 }));
     return confirmes.length ? confirmes : [{ name: '', quantity: 1 }];
   }
 

@@ -1,6 +1,17 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { LigneLue } from './ordonnance';
+
+/** Réponse de POST /api/v1/prescriptions/{id}/read (US07) : lignes rapprochées du catalogue. */
+export interface ReadPrescriptionResponse {
+  readingId: string;
+  prescriptionDetected: boolean;
+  lignes: LigneLue[];
+  warnings: string[];
+  provider: string;
+  durationMs: number;
+}
 
 /** Réponse de POST /api/v1/prescriptions (US06). */
 export interface PrescriptionUploadResponse {
@@ -28,8 +39,8 @@ export class PrescriptionService {
 
   private readonly apiUrl = '/api/v1/prescriptions';
 
-  readStored(id: string, token: string) {
-    return this.http.post(`${this.apiUrl}/${encodeURIComponent(id)}/read?consent=true`, null, {
+  readStored(id: string, token: string): Observable<ReadPrescriptionResponse> {
+    return this.http.post<ReadPrescriptionResponse>(`${this.apiUrl}/${encodeURIComponent(id)}/read?consent=true`, null, {
       headers: { Authorization: `Bearer ${token}` },
     });
   }

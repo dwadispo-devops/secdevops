@@ -1,4 +1,5 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { OrdonnanceService } from '../services/ordonnance';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ScanPage } from './scan';
@@ -136,7 +137,21 @@ describe('ScanPage (US06)', () => {
     sessionStorage.setItem('access_token', 'patient'); page.readStored('prescription-id');
     const read = http.expectOne('/api/v1/prescriptions/prescription-id/read?consent=true');
     expect(read.request.headers.get('Authorization')).toBe('Bearer patient');
-    read.flush({ lines: [] }); expect(page.readingMessage()).toContain('enregistrée');
+    read.flush({ readingId: 'r1', prescriptionDetected: true, warnings: [], provider: 'test', durationMs: 1,
+      lignes: [{ id: 1, texteLu: 'DOLIPRANE 1 g', quantite: 2, score: 0.94, suggestions: [{ id: '611', nom: 'DOLIPRANE 1000 MG' }] }] });
+    expect(page.readingMessage()).toContain('enregistrée');
+    const lignes = TestBed.inject(OrdonnanceService).lignes();
+    expect(lignes.length).toBe(1);
+    expect(lignes[0].quantite).toBe(2);
+    expect(lignes[0].choix?.nom).toBe('DOLIPRANE 1000 MG'); // vert : confirmé d'office
+  });
+
+  it('propose la saisie manuelle si aucune ligne n’a été lue (EF10)', () => {
+    sessionStorage.setItem('access_token', 'patient'); page.readStored('prescription-id');
+    http.expectOne('/api/v1/prescriptions/prescription-id/read?consent=true')
+      .flush({ readingId: 'r1', prescriptionDetected: true, lignes: [], warnings: [], provider: 'test', durationMs: 1 });
+    expect(page.readingFailed()).toBe(true);
+    expect(TestBed.inject(OrdonnanceService).lignes().length).toBe(0);
   });
 
   it('reports unavailable OCR without a fake reading', () => {

@@ -1,5 +1,7 @@
 import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { OrdonnanceService } from '../services/ordonnance';
 import {
   MAX_FILE_SIZE,
   PrescriptionService,
@@ -27,9 +29,10 @@ import {
           <h2>✅ Ordonnance envoyée</h2>
           <p>Votre ordonnance a bien été reçue et enregistrée de façon sécurisée.</p>
           <p class="meta">Référence : {{ r.id }}</p>
-          <p>Recopiez cette référence dans la demande de disponibilité pour partager l’ordonnance.</p>
-          <button type="button" (click)="readStored(r.id)" [disabled]="loading()">Lire avec l’IA et conserver le résultat</button>
+          <p>Cette référence sera reprise automatiquement dans votre demande de disponibilité.</p>
+          <button type="button" class="primary" (click)="readStored(r.id)" [disabled]="loading()">{{ loading() ? 'Lecture en cours…' : 'Lire mon ordonnance et vérifier les médicaments' }}</button>
           @if (readingMessage()) { <p role="status">{{ readingMessage() }}</p> }
+          @if (readingFailed()) { <p><a href="/demande-disponibilite">Saisir mes médicaments à la main</a></p> }
           <button type="button" (click)="restart()">Envoyer une autre ordonnance</button>
         </section>
       } @else {
@@ -103,6 +106,8 @@ import {
 })
 export class ScanPage implements OnDestroy {
   private readonly prescriptionService = inject(PrescriptionService);
+  private readonly ordonnance = inject(OrdonnanceService);
+  private readonly router = inject(Router);
 
   readonly file = signal<File | null>(null);
   readonly previewUrl = signal<string | null>(null);
@@ -112,15 +117,39 @@ export class ScanPage implements OnDestroy {
   readonly error = signal('');
   readonly result = signal<PrescriptionUploadResponse | null>(null);
   readonly readingMessage = signal('');
+  /** EF10 / ENF07 : la lecture a échoué, on propose la saisie manuelle. */
+  readonly readingFailed = signal(false);
 
   readStored(id: string): void {
     const token = sessionStorage.getItem('access_token');
     if (!token || this.loading()) return;
-    this.loading.set(true); this.readingMessage.set('Lecture en cours…');
+    this.loading.set(true); this.readingFailed.set(false); this.readingMessage.set('Lecture en cours… (jusqu’à 15 secondes)');
     this.prescriptionService.readStored(id, token).subscribe({
-      next: () => { this.loading.set(false); this.readingMessage.set('Lecture IA enregistrée. Vérifiez toujours l’ordonnance originale.'); },
-      error: () => { this.loading.set(false); this.readingMessage.set('Lecture IA indisponible. Aucun résultat n’a été inventé ; vous pouvez partager l’image seule.'); },
+      next: lecture => {
+        this.loading.set(false);
+        if (lecture?.prescriptionDetected === false) {
+          this.echec('Cette image ne ressemble pas à une ordonnance. Reprenez la photo ou saisissez vos médicaments à la main.');
+          return;
+        }
+        const lignes = lecture?.lignes ?? [];
+        if (lignes.length === 0) {
+          this.echec('Aucun médicament n’a pu être lu. Reprenez la photo ou saisissez vos médicaments à la main.');
+          return;
+        }
+        this.ordonnance.charger(lignes);
+        this.readingMessage.set('Lecture IA enregistrée. Vérifiez toujours l’ordonnance originale.');
+        this.router.navigateByUrl('/verification').catch(() => undefined);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.echec('Lecture IA indisponible. Aucun résultat n’a été inventé ; vous pouvez saisir vos médicaments à la main.');
+      },
     });
+  }
+
+  private echec(message: string): void {
+    this.readingFailed.set(true);
+    this.readingMessage.set(message);
   }
 
   readonly busy = computed(() => this.preparing() || this.loading());
@@ -201,6 +230,7 @@ export class ScanPage implements OnDestroy {
 
   restart(): void {
     this.readingMessage.set('');
+    this.readingFailed.set(false);
     this.clear();
     this.result.set(null);
     this.error.set('');

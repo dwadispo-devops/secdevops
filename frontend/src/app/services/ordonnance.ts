@@ -12,6 +12,8 @@ export interface LigneOrdonnance {
   suggestions: Produit[];
   choix: Produit | null;
   supprimee: boolean;
+  /** Nombre de boîtes prescrites, si l'IA l'a lu. */
+  quantite?: number | null;
 }
 
 export type Niveau = 'vert' | 'orange' | 'rouge';
@@ -50,7 +52,7 @@ const CATALOGUE: Produit[] = [
   { id: 'p8', nom: 'SPASFON, comprimé' },
 ];
 
-type LigneLue = Omit<LigneOrdonnance, 'choix' | 'supprimee'>;
+export type LigneLue = Omit<LigneOrdonnance, 'choix' | 'supprimee'>;
 
 const LECTURE_DEMO: LigneLue[] = [
   { id: 1, texteLu: 'Doliprane 1g cp', score: 0.94, suggestions: [CATALOGUE[0]] },
@@ -73,9 +75,10 @@ export class OrdonnanceService {
     return actives.length > 0 && actives.every((l) => l.choix !== null);
   });
 
-  charger(): void {
+  /** Charge les lignes lues par l'IA (US07). Sans argument : jeu de démonstration, utilisé seulement par les tests. */
+  charger(lignes: readonly LigneLue[] = LECTURE_DEMO): void {
     this.lignes.set(
-      LECTURE_DEMO.map((l) => ({
+      lignes.map((l) => ({
         ...l,
         // une ligne verte est confirmée d'office, le patient peut encore la corriger
         choix: niveauDe(l.score) === 'vert' ? (l.suggestions[0] ?? null) : null,

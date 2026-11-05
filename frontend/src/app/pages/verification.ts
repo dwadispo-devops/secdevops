@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Etat, LigneOrdonnance, OrdonnanceService, Produit, etatDe } from '../services/ordonnance';
+import { CatalogueService } from '../services/catalogue.service';
 
 @Component({
   selector: 'app-verification',
@@ -78,6 +79,13 @@ import { Etat, LigneOrdonnance, OrdonnanceService, Produit, etatDe } from '../se
         Voici les médicaments lus sur votre ordonnance. La lecture automatique peut se tromper :
         vérifiez chaque ligne, corrigez-la si besoin, puis continuez.
       </p>
+
+      @if (service.lignes().length === 0) {
+        <p class="vide" role="status">
+          Aucune ordonnance à vérifier. <a routerLink="/scan">Scanner une ordonnance</a>
+          ou <a routerLink="/demande-disponibilite">saisir vos médicaments à la main</a>.
+        </p>
+      }
 
       <ul class="lignes">
         @for (ligne of service.lignes(); track ligne.id) {
@@ -179,10 +187,12 @@ import { Etat, LigneOrdonnance, OrdonnanceService, Produit, etatDe } from '../se
 export class VerificationPage {
   protected readonly service = inject(OrdonnanceService);
   private readonly router = inject(Router);
+  private readonly catalogue = inject(CatalogueService);
 
   protected readonly etatDe = etatDe;
   protected readonly enCorrection = signal<number | null>(null);
   private readonly termes = signal<Record<number, string>>({});
+  private readonly trouves = signal<Record<number, Produit[]>>({});
 
   private readonly libelles: Record<Etat, string> = {
     confirmee: 'Confirmé',
@@ -190,12 +200,6 @@ export class VerificationPage {
     'non-lue': 'Non lu',
     supprimee: 'Supprimé',
   };
-
-  constructor() {
-    if (this.service.lignes().length === 0) {
-      this.service.charger();
-    }
-  }
 
   protected libelle(etat: Etat): string {
     return this.libelles[etat];
@@ -212,10 +216,14 @@ export class VerificationPage {
   protected setTerme(id: number, event: Event): void {
     const valeur = (event.target as HTMLInputElement).value;
     this.termes.update((t) => ({ ...t, [id]: valeur }));
+    this.catalogue.rechercher(valeur).subscribe((produits) => {
+      // ignore une réponse arrivée après une saisie plus récente
+      if (this.terme(id) === valeur) this.trouves.update((r) => ({ ...r, [id]: produits }));
+    });
   }
 
   protected resultats(id: number): Produit[] {
-    return this.service.rechercher(this.terme(id));
+    return this.trouves()[id] ?? [];
   }
 
   protected corriger(id: number): void {
@@ -229,6 +237,7 @@ export class VerificationPage {
   protected choisir(ligne: LigneOrdonnance, produit: Produit): void {
     this.service.choisir(ligne.id, produit);
     this.termes.update((t) => ({ ...t, [ligne.id]: '' }));
+    this.trouves.update((r) => ({ ...r, [ligne.id]: [] }));
     this.enCorrection.set(null);
   }
 
