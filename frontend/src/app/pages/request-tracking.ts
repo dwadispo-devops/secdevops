@@ -44,7 +44,13 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
       <h1>Suivi de ma demande</h1>
       @if (id) { <p class="ref">Référence : {{ id }}</p> }
       @if (erreur()) {
-        <p role="alert">{{ erreur() }} <a routerLink="/demande-disponibilite">Nouvelle demande</a></p>
+        <p role="alert">{{ erreur() }}
+          @if (nonConnecte()) {
+            <a routerLink="/connexion" [queryParams]="{ retour: '/suivi-demande/' + id }">Se connecter</a>
+          } @else {
+            <a routerLink="/demande-disponibilite">Nouvelle demande</a>
+          }
+        </p>
       }
 
       @if (reponses(); as liste) {
@@ -127,6 +133,7 @@ export class RequestTrackingPage {
   readonly id: string | null = this.route.snapshot.paramMap.get('id') ?? this.suivie?.id ?? null;
   readonly reponses = signal<ReponsePharmacie[] | null>(null);
   readonly erreur = signal('');
+  readonly nonConnecte = signal(false);
   private readonly coordonnees = signal<Record<string, { lat: number; lng: number }>>({});
 
   readonly centre = computed(() =>
@@ -162,6 +169,7 @@ export class RequestTrackingPage {
 
   charger(): Observable<void> {
     const token = sessionStorage.getItem('access_token');
+    this.nonConnecte.set(!token);
     if (!token) {
       this.erreur.set('Connectez-vous avec le compte qui a envoyé la demande.');
       return of(undefined);
