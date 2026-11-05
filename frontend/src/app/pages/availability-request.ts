@@ -1,4 +1,5 @@
 import { Component, inject, signal, effect } from '@angular/core';
+import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Observable, Subject, catchError, debounceTime, of, switchMap } from 'rxjs';
 import { Pharmacy, PharmacyService } from '../services/pharmacy.service';
@@ -124,6 +125,7 @@ export class AvailabilityRequestPage {
   private readonly http = inject(HttpClient);
   private readonly ordonnance = inject(OrdonnanceService);
   private readonly pharmacies = inject(PharmacyService);
+  private readonly routeurSuivi = inject(Router);
   private readonly apercuDemande = new Subject<void>();
 
   /** Pharmacies qui recevront la demande (API US04). null = position encore inconnue. */
@@ -161,6 +163,14 @@ export class AvailabilityRequestPage {
     const lat = this.latitude(), lng = this.longitude(), rayon = Number(this.radiusM);
     if (lat === null || lng === null || !Number.isInteger(rayon) || rayon < 100 || rayon > 20000) return of(null);
     return this.pharmacies.getNearbyPharmacies(lat, lng, rayon).pipe(catchError(() => of(null)));
+  }
+
+  /** Après l'envoi : mémorise la demande (position, rayon) puis ouvre la page de suivi. */
+  private allerAuSuivi(id: string | undefined): void {
+    if (!id) return;
+    sessionStorage.setItem('demande_suivie', JSON.stringify({
+      id, latitude: this.latitude(), longitude: this.longitude(), radiusM: Number(this.radiusM) }));
+    this.routeurSuivi.navigateByUrl(`/suivi-demande/${id}`).catch(() => undefined);
   }
 
   onRayonChange(): void {
@@ -251,13 +261,14 @@ export class AvailabilityRequestPage {
         if (this.prescriptionId && created.id) {
           this.http.put(`/api/availability-requests/${created.id}/prescription`,
             { prescriptionId: this.prescriptionId.trim() }, { headers: { Authorization: `Bearer ${token}` } }).subscribe({
-              next: () => { this.loading.set(false); this.message.set('Demande envoyée avec son ordonnance.'); },
+              next: () => { this.loading.set(false); this.message.set('Demande envoyée avec son ordonnance.'); this.allerAuSuivi(created.id); },
               error: () => { this.loading.set(false); this.message.set(`Demande créée (${created.id}), mais ordonnance non associée. Vérifiez la référence et vos droits. Ne renvoyez pas la demande.`); },
             });
           return;
         }
         this.loading.set(false);
         this.message.set('Votre demande a été envoyée avec succès !');
+        this.allerAuSuivi(created.id);
       },
       error: error => {
         this.loading.set(false);

@@ -59,5 +59,15 @@ export const routes: Routes = [
     path: 'demande',
     redirectTo: 'demande-disponibilite',
   },
+  {
+    path: 'suivi-demande/:id',
+    title: 'Suivi de ma demande – DwaDispo',
+    loadComponent: () => import('./pages/request-tracking').then((m) => m.RequestTrackingPage),
+  },
+  {
+    path: 'suivi-demande',
+    title: 'Suivi de ma demande – DwaDispo',
+    loadComponent: () => import('./pages/request-tracking').then((m) => m.RequestTrackingPage),
+  },
   { path: '**', redirectTo: '' },
 ];
