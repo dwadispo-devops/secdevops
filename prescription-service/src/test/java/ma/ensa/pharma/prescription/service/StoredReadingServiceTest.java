@@ -33,12 +33,12 @@ class StoredReadingServiceTest {
         verifyNoInteractions(reader);
     }
     @Test void storesRealReaderOutputEncryptedAndReturnsItsExactText() {
-        var line=new MedicationLineDto(1,"Synthetic OCR text","Synthetic","1 g",null,null,null,1,LineStatus.LU);
-        when(reader.read(any(),eq("prescription.png"),eq(true))).thenReturn(new ReadPrescriptionResponse(UUID.randomUUID(),true,List.of(line),"test",1,List.of()));
+        var line=new LigneOrdonnanceDto(1,"Synthetic OCR text",1,0.94,List.of(new ProduitDto("TEST-001","Synthetic")));
+        when(reader.read(any(),eq("prescription.png"),eq(true))).thenReturn(new ReadPrescriptionResponse(UUID.randomUUID(),true,List.of(line),List.of(),"test",1));
         service.read(patient,prescription.getId(),true);
         assertThat(new String(prescription.getReadingData(),java.nio.charset.StandardCharsets.UTF_8)).doesNotContain("Synthetic OCR text");
         var result=service.view(patient,prescription.getId());
-        assertThat(result.ocrText()).isEqualTo("Synthetic OCR text"); assertThat(result.medications().getFirst().name()).isEqualTo("Synthetic");
+        assertThat(result.ocrText()).isEqualTo("Synthetic OCR text"); assertThat(result.medications().getFirst().name()).isEqualTo("Synthetic"); assertThat(result.medications().getFirst().status()).isEqualTo("LU");
         prescription.markImageDeleted();
         assertThat(prescription.getReadingData()).isNull(); assertThat(service.view(patient,prescription.getId()).imageAvailable()).isFalse();
     }
