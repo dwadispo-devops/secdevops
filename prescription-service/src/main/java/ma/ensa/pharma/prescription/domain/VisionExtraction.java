@@ -6,7 +6,11 @@ import java.util.List;
 
 /**
  * Sortie structurée attendue du modèle vision (le schéma JSON est généré à partir de ce record
- * par Spring AI). Aucun champ ne permet au modèle de donner un conseil médical.
+ * par Spring AI).
+ * <p>
+ * Le nom, le dosage et la forme sont demandés séparément : ils servent à retrouver le bon produit
+ * dans le catalogue CNOPS (US07). La réponse finale ne garde que le texte lu, la quantité et
+ * les produits du catalogue.
  */
 public record VisionExtraction(
         @JsonPropertyDescription("true si l'image est bien une ordonnance médicale, false sinon")
@@ -16,26 +20,18 @@ public record VisionExtraction(
         List<ExtractedMedication> medications) {
 
     public record ExtractedMedication(
-            @JsonPropertyDescription("Texte exact de la ligne tel qu'il est écrit sur l'ordonnance")
-            String rawText,
-
-            @JsonPropertyDescription("Nom commercial ou DCI du médicament, tel qu'écrit. Vide si illisible")
+            @JsonPropertyDescription("Nom commercial (ou DCI) du médicament SEUL, sans dosage ni forme, "
+                    + "tel qu'écrit, par exemple 'DOLIPRANE' ou 'AUGMENTIN'. Vide si illisible")
             String name,
 
-            @JsonPropertyDescription("Dosage tel qu'écrit, par exemple '1 g' ou '500 mg'. Vide si absent")
+            @JsonPropertyDescription("Dosage tel qu'écrit, par exemple '1 g', '500 mg' ou '1 g/125 mg'. Vide si absent")
             String dosage,
 
-            @JsonPropertyDescription("Forme galénique telle qu'écrite : comprimé, gélule, sirop, sachet... Vide si absente")
+            @JsonPropertyDescription("Forme telle qu'écrite : comprimé, gélule, sachet, sirop, suppositoire... Vide si absente")
             String form,
 
-            @JsonPropertyDescription("Posologie recopiée telle qu'écrite, par exemple '1 comprimé 3 fois par jour'. Vide si absente")
-            String posology,
-
-            @JsonPropertyDescription("Durée du traitement telle qu'écrite, par exemple '7 jours'. Vide si absente")
-            String duration,
-
-            @JsonPropertyDescription("Nombre de boîtes prescrites si indiqué, sinon null")
-            Integer boxes,
+            @JsonPropertyDescription("Nombre de boîtes prescrites (mention 'QSP' ou 'N boîtes'). null si non indiqué")
+            Integer quantity,
 
             @JsonPropertyDescription("true si la ligne est difficile à lire ou incertaine")
             boolean uncertain) {
