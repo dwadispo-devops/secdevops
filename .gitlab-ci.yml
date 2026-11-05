@@ -17,7 +17,7 @@ build:
   stage: build
   parallel:
     matrix:
-      - SERVICE: [auth-service, pharmacy-service, prescription-service]
+      - SERVICE: [eureka-server, api-gateway, auth-service, pharmacy-service, medication-service, prescription-service]
   script:
     - mvn $MAVEN_CLI_OPTS -f $SERVICE/pom.xml clean compile -DskipTests
 
@@ -31,7 +31,7 @@ test:
     TESTCONTAINERS_HOST_OVERRIDE: "docker"
   parallel:
     matrix:
-      - SERVICE: [auth-service, pharmacy-service, prescription-service]
+      - SERVICE: [eureka-server, api-gateway, auth-service, pharmacy-service, medication-service, prescription-service]
   script:
     - mvn $MAVEN_CLI_OPTS -f $SERVICE/pom.xml test
   artifacts:
@@ -52,3 +52,17 @@ frontend-build:
     - cd frontend
     - npm ci
     - npm run build
+
+frontend-test:
+  stage: test
+  image: node:22
+  variables:
+    npm_config_cache: "$CI_PROJECT_DIR/.npm"
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-npm"
+    paths:
+      - .npm
+  script:
+    - cd frontend
+    - npm ci
+    - npx ng test --watch=false
