@@ -33,8 +33,7 @@ export const routes: Routes = [
   {
     path: 'medicaments',
     title: 'Médicaments – DwaDispo',
-    data: { titre: 'Médicaments', texte: enConstruction },
-    loadComponent: () => import('./pages/placeholder').then((m) => m.PlaceholderPage),
+    loadComponent: () => import('./pages/medications').then((m) => m.MedicationsPage),
   },
   {
     path: 'pharmacies',
@@ -44,8 +43,12 @@ export const routes: Routes = [
   {
     path: 'connexion',
     title: 'Connexion – DwaDispo',
-    data: { titre: 'Connexion', texte: enConstruction },
-    loadComponent: () => import('./pages/placeholder').then((m) => m.PlaceholderPage),
+    loadComponent: () => import('./pages/login').then((m) => m.LoginPage),
+  },
+  {
+    path: 'inscription',
+    title: 'Créer un compte – DwaDispo',
+    loadComponent: () => import('./pages/register').then((m) => m.RegisterPage),
   },
     {
     path: 'verification',
@@ -54,9 +57,7 @@ export const routes: Routes = [
   },
   {
     path: 'demande',
-    title: 'Demande de disponibilité – MédiDispo',
-    data: { titre: 'Demande de disponibilité', texte: enConstruction },
-    loadComponent: () => import('./pages/placeholder').then((m) => m.PlaceholderPage),
+    redirectTo: 'demande-disponibilite',
   },
   { path: '**', redirectTo: '' },
 ];

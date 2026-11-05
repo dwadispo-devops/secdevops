@@ -1,1 +1,15 @@
+<header class="topbar">
+  <a class="brand" routerLink="/">DwaDispo</a>
+  <nav aria-label="Navigation principale">
+    <a routerLink="/pharmacies" routerLinkActive="active">Pharmacies</a>
+    <a routerLink="/medicaments" routerLinkActive="active">Médicaments</a>
+    <a routerLink="/scan" routerLinkActive="active">Scanner</a>
+    <a routerLink="/pharmacien/demandes" routerLinkActive="active">Espace pharmacien</a>
+    @if (connected()) {
+      <button type="button" (click)="logout()">Déconnexion</button>
+    } @else {
+      <a routerLink="/connexion" routerLinkActive="active">Connexion</a>
+    }
+  </nav>
+</header>
 <router-outlet />
