@@ -44,6 +44,15 @@ public class Prescription {
     @Column(name = "image_deleted_at")
     private Instant imageDeletedAt;
 
+    @Column(name = "reading_iv")
+    private byte[] readingIv;
+    @Column(name = "reading_data")
+    private byte[] readingData;
+
+    public byte[] getReadingIv() { return readingIv; }
+    public byte[] getReadingData() { return readingData; }
+    public void storeReading(byte[] iv, byte[] data) { this.readingIv=iv; this.readingData=data; }
+
     protected Prescription() {
         // Constructeur vide exigé par JPA
     }
@@ -71,6 +80,8 @@ public class Prescription {
 
     public void markImageDeleted() {
         this.imageDeletedAt = Instant.now();
+        this.readingIv = null;
+        this.readingData = null;
     }
 
     /** Type MIME à renvoyer quand on sert l'image au navigateur. */

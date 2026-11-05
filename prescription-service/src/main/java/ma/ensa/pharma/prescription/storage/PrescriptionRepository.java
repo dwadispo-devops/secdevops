@@ -6,4 +6,7 @@ import java.util.UUID;
 
 /** Accès à la table "prescription" : save, findById, deleteById... sont fournis par Spring. */
 public interface PrescriptionRepository extends JpaRepository<Prescription, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select p from Prescription p where p.id=:id")
+    java.util.Optional<Prescription> lockById(@org.springframework.data.repository.query.Param("id") UUID id);
 }

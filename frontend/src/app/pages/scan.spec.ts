@@ -132,6 +132,19 @@ describe('ScanPage (US06)', () => {
     expect(page.error()).toBe('Le contenu du fichier ne correspond pas à son extension.');
   });
 
+  it('requests actual stored OCR through the existing prescription service', () => {
+    sessionStorage.setItem('access_token', 'patient'); page.readStored('prescription-id');
+    const read = http.expectOne('/api/v1/prescriptions/prescription-id/read?consent=true');
+    expect(read.request.headers.get('Authorization')).toBe('Bearer patient');
+    read.flush({ lines: [] }); expect(page.readingMessage()).toContain('enregistrée');
+  });
+
+  it('reports unavailable OCR without a fake reading', () => {
+    sessionStorage.setItem('access_token', 'patient'); page.readStored('prescription-id');
+    http.expectOne('/api/v1/prescriptions/prescription-id/read?consent=true').flush({}, { status: 503, statusText: 'Unavailable' });
+    expect(page.readingMessage()).toContain('Aucun résultat'); expect(page.loading()).toBe(false);
+  });
+
   it('permet d’envoyer une autre ordonnance après un envoi réussi', async () => {
     sessionStorage.setItem('access_token', 'jeton-patient');
     await page.onFileSelected(fileEvent(pdf()));

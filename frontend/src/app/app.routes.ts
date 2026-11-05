@@ -4,6 +4,16 @@ const enConstruction = 'Cette page sera développée dans un prochain sprint.';
 
 export const routes: Routes = [
   {
+    path: 'pharmacien/connexion',
+    title: 'Connexion pharmacien - MédiDispo',
+    loadComponent: () => import('./pages/pharmacist-login').then(m => m.PharmacistLoginPage),
+  },
+  {
+    path: 'pharmacien/demandes',
+    title: 'Demandes reçues - MédiDispo',
+    loadComponent: () => import('./pages/pharmacist-requests').then(m => m.PharmacistRequestsPage),
+  },
+  {
     path: 'demande-disponibilite',
     title: 'Demande de disponibilité - MédiDispo',
     loadComponent: () => import('./pages/availability-request').then((m) => m.AvailabilityRequestPage),

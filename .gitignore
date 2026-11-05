@@ -2,6 +2,7 @@
 # Fichiers d'environnement & Secrets (ne jamais commiter)
 # ============================================================
 .env
+.us10/
 *.env
 infra/.env
 !.env.example

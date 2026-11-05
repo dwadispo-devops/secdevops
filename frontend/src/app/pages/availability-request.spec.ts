@@ -151,6 +151,29 @@ describe('AvailabilityRequestPage', () => {
     expect(page.message()).toContain('Vérifiez');
   });
 
+  it('links an explicitly selected prescription after US09 creation', () => {
+    validForm(); sessionStorage.setItem('access_token', 'patient');
+    page.prescriptionId = '10000000-0000-4000-8000-000000000001'; page.submit();
+    http.expectOne('/api/availability-requests').flush({ id: 'request-id' });
+    const link = http.expectOne('/api/availability-requests/request-id/prescription');
+    expect(link.request.method).toBe('PUT');
+    expect(link.request.body.prescriptionId).toBe(page.prescriptionId);
+    link.flush(null, { status: 204, statusText: 'No content' });
+    expect(page.message()).toContain('avec son ordonnance');
+  });
+
+  it('explains partial creation if prescription ownership validation fails', () => {
+    validForm(); sessionStorage.setItem('access_token', 'patient');
+    page.prescriptionId = '10000000-0000-4000-8000-000000000001'; page.submit();
+    http.expectOne('/api/availability-requests').flush({ id: 'request-id' });
+    http.expectOne('/api/availability-requests/request-id/prescription').flush({}, { status: 404, statusText: 'Not found' });
+    expect(page.loading()).toBe(false); expect(page.message()).toContain('Ne renvoyez pas la demande');
+  });
+
+  it('rejects malformed prescription reference before creating a request', () => {
+    validForm(); page.prescriptionId = 'invalid'; page.submit(); http.expectNone('/api/availability-requests');
+  });
+
   it('binds DOM inputs, submits the form and displays the response', async () => {
     const fixture = TestBed.createComponent(AvailabilityRequestPage);
     const component = fixture.componentInstance;

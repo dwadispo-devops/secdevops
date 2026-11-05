@@ -27,6 +27,9 @@ import {
           <h2>✅ Ordonnance envoyée</h2>
           <p>Votre ordonnance a bien été reçue et enregistrée de façon sécurisée.</p>
           <p class="meta">Référence : {{ r.id }}</p>
+          <p>Recopiez cette référence dans la demande de disponibilité pour partager l’ordonnance.</p>
+          <button type="button" (click)="readStored(r.id)" [disabled]="loading()">Lire avec l’IA et conserver le résultat</button>
+          @if (readingMessage()) { <p role="status">{{ readingMessage() }}</p> }
           <button type="button" (click)="restart()">Envoyer une autre ordonnance</button>
         </section>
       } @else {
@@ -108,6 +111,17 @@ export class ScanPage implements OnDestroy {
   readonly loading = signal(false);
   readonly error = signal('');
   readonly result = signal<PrescriptionUploadResponse | null>(null);
+  readonly readingMessage = signal('');
+
+  readStored(id: string): void {
+    const token = sessionStorage.getItem('access_token');
+    if (!token || this.loading()) return;
+    this.loading.set(true); this.readingMessage.set('Lecture en cours…');
+    this.prescriptionService.readStored(id, token).subscribe({
+      next: () => { this.loading.set(false); this.readingMessage.set('Lecture IA enregistrée. Vérifiez toujours l’ordonnance originale.'); },
+      error: () => { this.loading.set(false); this.readingMessage.set('Lecture IA indisponible. Aucun résultat n’a été inventé ; vous pouvez partager l’image seule.'); },
+    });
+  }
 
   readonly busy = computed(() => this.preparing() || this.loading());
   readonly canSubmit = computed(() => this.file() !== null && this.consent() && !this.busy());
@@ -186,6 +200,7 @@ export class ScanPage implements OnDestroy {
   }
 
   restart(): void {
+    this.readingMessage.set('');
     this.clear();
     this.result.set(null);
     this.error.set('');
