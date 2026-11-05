@@ -98,6 +98,7 @@ services:
         condition: service_started
     environment:
       DB_URL: jdbc:postgresql://pharmacy-db:5432/pharmacydb
+      PRESCRIPTION_SERVICE_URL: http://prescription-service:8085
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
@@ -106,6 +107,50 @@ services:
       - "8082:8082"
     restart: unless-stopped
 
+  # =========================
+  # PRESCRIPTION DATABASE (PostgreSQL 16 + pgvector, prêt pour le RAG de l'US07)
+  # =========================
+  prescription-db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: prescriptiondb
+      POSTGRES_USER: ${DB_USER:?definir DB_USER dans .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?definir DB_PASSWORD dans .env}
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - prescription-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d prescriptiondb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # =========================
+  # PRESCRIPTION SERVICE (US06 envoi + TS05/US07 lecture IA)
+  # =========================
+  prescription-service:
+    build: ./prescription-service
+    image: prescription-service:dev
+    depends_on:
+      prescription-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://prescription-db:5432/prescriptiondb
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
+      PRESCRIPTION_IMAGE_KEY: ${PRESCRIPTION_IMAGE_KEY:?definir PRESCRIPTION_IMAGE_KEY dans .env (openssl rand -base64 32)}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-cle-non-configuree}  # vraie cle dans .env pour /read (US07)
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    ports:
+      - "8085:8085"
+    restart: unless-stopped
+
 volumes:
   auth-db-data:
   pharmacy-db-data:
+  prescription-db-data:

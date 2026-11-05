@@ -1,0 +1,74 @@
+<main class="review">
+  <h1>Demandes reçues par mes pharmacies</h1>
+  <a routerLink="/pharmacien/connexion">Se connecter / changer de compte</a>
+  <p>Consultez l’ordonnance et envoyez une réponse au patient. Les prix sont exprimés en DH.</p>
+  <button type="button" (click)="reload()" [disabled]="loading() || sending()">Actualiser les demandes</button>
+  @if (error()) { <p role="alert" class="error">{{ error() }}</p> }
+  @if (success()) { <p role="status" class="success">{{ success() }}</p> }
+  @if (loading()) { <p role="status">Chargement des demandes…</p> }
+  <div class="columns">
+    <section aria-label="Liste des demandes">
+      @for (r of requests(); track r.requestId + r.pharmacyId) {
+        <button class="request" type="button" [disabled]="sending()" (click)="select(r)"
+                [attr.aria-pressed]="detail()?.request?.requestId === r.requestId && detail()?.request?.pharmacyId === r.pharmacyId">
+          <strong>{{ r.pharmacyName }}</strong>
+          <span>{{ r.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          <span>{{ label(r.status) }}</span>
+        </button>
+      } @empty {
+        @if (!loading() && !error()) { <p>Aucune demande reçue.</p> }
+      }
+    </section>
+    <section aria-label="Détail de la demande" aria-live="polite">
+      @if (detailLoading()) { <p>Chargement du détail…</p> }
+      @if (detail(); as d) {
+        <h2>{{ d.request.pharmacyName }} — {{ label(d.request.status) }}</h2>
+        <p class="reference">Référence : {{ d.request.requestId }}</p>
+        <h3>Médicaments demandés par le patient</h3>
+        <ul>@for (m of d.medications; track $index) { <li>{{ m.name }} — quantité {{ m.quantity }}</li> }</ul>
+        <h3>Ordonnance originale</h3>
+        @if (prescriptionError()) { <p role="status">{{ prescriptionError() }}</p> }
+        @if (imageError()) { <p role="status">{{ imageError() }}</p> }
+        @if (prescription(); as p) {
+          @if (!p.imageAvailable) { <p>Image non fournie ou supprimée.</p> }
+          @if (imageUrl(); as url) {
+            @if (p.mediaType === 'application/pdf') {
+              <a [href]="url" target="_blank" rel="noopener">Ouvrir l’ordonnance PDF</a>
+            } @else {
+              <img [src]="url" alt="Ordonnance originale envoyée par le patient" (error)="imageError.set('Impossible d’afficher cette image.')" />
+            }
+          }
+          <h3>Texte lu par l’IA</h3>
+          @if (p.ocrText) { <pre>{{ p.ocrText }}</pre> } @else { <p>Aucun texte OCR disponible. Vérifiez l’image originale.</p> }
+          @if (p.medications.length) {
+            <h3>Médicaments reconnus par l’IA — à vérifier</h3>
+            <ul>@for (m of p.medications; track $index) { <li>{{ m.name || m.rawText }} {{ m.dosage }} ({{ m.status }})</li> }</ul>
+          }
+        }
+        @if (d.request.status === 'PENDING') {
+          <form (ngSubmit)="submit()">
+            <fieldset [disabled]="sending()">
+              <legend>Répondre au patient</legend>
+              <label for="availability">Disponibilité</label>
+              <select id="availability" name="availability" [(ngModel)]="availability">
+                <option value="AVAILABLE">Disponible</option><option value="UNAVAILABLE">Indisponible</option>
+              </select>
+              @if (availability === 'AVAILABLE') {
+                <label for="price">Prix total (DH)</label>
+                <input id="price" name="price" type="text" inputmode="decimal" [(ngModel)]="price" required pattern="[0-9]{1,10}(\.[0-9]{1,2})?" />
+              }
+              <label for="comment">Commentaire (facultatif)</label>
+              <textarea id="comment" name="comment" [(ngModel)]="comment" maxlength="1000" rows="3"></textarea>
+              <button type="submit" [disabled]="!valid() || sending()">{{ sending() ? 'Enregistrement…' : 'Envoyer ma réponse' }}</button>
+            </fieldset>
+          </form>
+        } @else {
+          <h3>Réponse enregistrée</h3>
+          @if (d.request.price !== null) { <p>Prix total : {{ d.request.price | number:'1.2-2' }} DH</p> }
+          @if (d.request.comment) { <p>{{ d.request.comment }}</p> }
+          <p>{{ d.request.respondedAt | date:'dd/MM/yyyy HH:mm' }}</p>
+        }
+      } @else { @if (!detailLoading()) { <p>Sélectionnez une demande pour consulter son ordonnance.</p> } }
+    </section>
+  </div>
+</main>

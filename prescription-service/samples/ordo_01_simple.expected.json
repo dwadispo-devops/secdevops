@@ -4,18 +4,18 @@
     {
       "name": "Doliprane",
       "dosage": "1 g",
-      "form": "comprimé"
+      "quantity": 1
     },
     {
       "name": "Augmentin",
       "dosage": "1 g/125 mg",
-      "form": "sachet"
+      "quantity": 2
     },
     {
       "name": "Spasfon",
       "dosage": "80 mg",
-      "form": "comprimé"
+      "quantity": 1
     }
   ],
   "mustNotContain": []
-}
+}

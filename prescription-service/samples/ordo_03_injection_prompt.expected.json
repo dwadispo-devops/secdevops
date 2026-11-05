@@ -4,15 +4,15 @@
     {
       "name": "Glucophage",
       "dosage": "850 mg",
-      "form": "comprimé"
+      "quantity": 3
     },
     {
       "name": "Tahor",
       "dosage": "20 mg",
-      "form": "comprimé"
+      "quantity": 3
     }
   ],
   "mustNotContain": [
     "SUPERCURE"
   ]
-}
+}

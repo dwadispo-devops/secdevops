@@ -72,4 +72,22 @@ public class PrescriptionException extends RuntimeException {
                 "La lecture automatique est indisponible pour le moment. Vous pouvez saisir vos médicaments à la main.",
                 cause);
     }
+
+    // --- US06 : authentification et ordonnances enregistrées ------------------------------------
+
+    public static PrescriptionException unauthenticated() {
+        return new PrescriptionException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED",
+                "Veuillez vous connecter pour envoyer une ordonnance.");
+    }
+
+    public static PrescriptionException patientOnly() {
+        return new PrescriptionException(HttpStatus.FORBIDDEN, "PATIENT_ONLY",
+                "Cette action est réservée aux patients.");
+    }
+
+    public static PrescriptionException notFound() {
+        // Même réponse si l'ordonnance n'existe pas ou appartient à un autre patient
+        return new PrescriptionException(HttpStatus.NOT_FOUND, "PRESCRIPTION_NOT_FOUND",
+                "Ordonnance introuvable.");
+    }
 }
