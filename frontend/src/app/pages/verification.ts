@@ -234,7 +234,7 @@ export class VerificationPage {
 
   protected continuer(): void {
     if (this.service.peutContinuer()) {
-      this.router.navigateByUrl('/demande');
+      this.router.navigateByUrl('/demande-disponibilite');
     }
   }
 }

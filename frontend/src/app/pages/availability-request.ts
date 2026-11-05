@@ -104,7 +104,7 @@ export class AvailabilityRequestPage {
 
   medications: Medication[] = [{ name: '', quantity: 1 }];
   radiusM = 5000;
-  prescriptionId = '';
+  prescriptionId = sessionStorage.getItem('last_prescription_id') ?? '';
 
   latitude = signal<number | null>(null);
   longitude = signal<number | null>(null);
