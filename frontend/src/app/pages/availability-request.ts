@@ -1,4 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, effect } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Observable, Subject, catchError, debounceTime, of, switchMap } from 'rxjs';
+import { Pharmacy, PharmacyService } from '../services/pharmacy.service';
 import { OrdonnanceService } from '../services/ordonnance';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -60,13 +63,27 @@ interface Medication {
 
         <p>Latitude : {{ latitude() ?? 'Non définie' }}</p>
         <p>Longitude : {{ longitude() ?? 'Non définie' }}</p>
+        @if (apercu(); as liste) {
+          <div class="apercu" role="status" [class.vide]="liste.length === 0">
+            @if (liste.length === 0) {
+              <p>⚠️ Aucune pharmacie dans un rayon de {{ radiusM / 1000 }} km. Élargissez le rayon pour que votre demande soit reçue.</p>
+            } @else {
+              <p><strong>📍 {{ liste.length >= 50 ? 'Au moins 50' : liste.length }} pharmacie(s)</strong>
+                 recevront votre demande (rayon de {{ radiusM / 1000 }} km) :</p>
+              <ul>
+                @for (p of liste.slice(0, 5); track p.id) { <li>{{ p.name }} – {{ distanceLisible(p.distanceM) }}</li> }
+              </ul>
+              @if (liste.length > 5) { <p class="plus">… et {{ liste.length - 5 }} autre(s).</p> }
+            }
+          </div>
+        }
 
         <label for="radius">Rayon de recherche (mètres)</label>
         <input
           id="radius"
           type="number"
           name="radius"
-          [(ngModel)]="radiusM"
+          [(ngModel)]="radiusM" (ngModelChange)="onRayonChange()"
           min="100"
           max="20000"
           required
@@ -95,6 +112,9 @@ interface Medication {
     input { padding: 10px; max-width: 100%; }
     button { padding: 10px 16px; cursor: pointer; }
     .actions { margin-top: 24px; }
+    .apercu { margin: 12px 0; padding: 12px 16px; border-radius: 8px; background: #e8f5ef; border-left: 4px solid #176b55; }
+    .apercu.vide { background: #fdecea; border-left-color: #b00020; color: #8a1020; }
+    .apercu p { margin: 0 0 6px; } .apercu ul { margin: 0; padding-left: 20px; } .apercu .plus { margin-top: 6px; color: #555; }
     @media (max-width: 600px) {
       .medication { flex-direction: column; }
     }
@@ -103,6 +123,21 @@ interface Medication {
 export class AvailabilityRequestPage {
   private readonly http = inject(HttpClient);
   private readonly ordonnance = inject(OrdonnanceService);
+  private readonly pharmacies = inject(PharmacyService);
+  private readonly apercuDemande = new Subject<void>();
+
+  /** Pharmacies qui recevront la demande (API US04). null = position encore inconnue. */
+  readonly apercu = signal<Pharmacy[] | null>(null);
+
+  private readonly suiviPosition = effect(() => {
+    if (this.latitude() !== null && this.longitude() !== null) this.apercuDemande.next();
+  });
+
+  private readonly abonnementApercu = this.apercuDemande.pipe(
+    debounceTime(400),
+    switchMap(() => this.chargerApercu()),
+    takeUntilDestroyed(),
+  ).subscribe(liste => this.apercu.set(liste));
 
   // US09 : reprend les médicaments confirmés à l'écran de vérification (US08)
   medications: Medication[] = this.depuisOrdonnance();
@@ -119,6 +154,21 @@ export class AvailabilityRequestPage {
       .filter(l => !l.supprimee && l.choix)
       .map(l => ({ name: l.choix!.nom, quantity: l.quantite ?? 1 }));
     return confirmes.length ? confirmes : [{ name: '', quantity: 1 }];
+  }
+
+  /** Recherche les pharmacies dans le rayon choisi ; rien si la position ou le rayon sont invalides. */
+  chargerApercu(): Observable<Pharmacy[] | null> {
+    const lat = this.latitude(), lng = this.longitude(), rayon = Number(this.radiusM);
+    if (lat === null || lng === null || !Number.isInteger(rayon) || rayon < 100 || rayon > 20000) return of(null);
+    return this.pharmacies.getNearbyPharmacies(lat, lng, rayon).pipe(catchError(() => of(null)));
+  }
+
+  onRayonChange(): void {
+    this.apercuDemande.next();
+  }
+
+  distanceLisible(metres: number): string {
+    return metres < 1000 ? `${Math.round(metres)} m` : `${(metres / 1000).toFixed(1).replace('.', ',')} km`;
   }
 
   addMedication(): void {
