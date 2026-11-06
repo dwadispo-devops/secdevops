@@ -12,6 +12,8 @@ import { RouterLink } from '@angular/router';
         en pharmacie et retirez avec un code.
       </p>
       <a class="btn" routerLink="/scan">Scanner mon ordonnance</a>
+      <a class="btn" routerLink="/pharmacien/demandes">Espace pharmacien : demandes reçues</a>
+        <a class="btn" routerLink="/pharmacien/inscription">Vous êtes pharmacien ? Inscrire ma pharmacie</a>
     </section>
 
     <section class="cards">

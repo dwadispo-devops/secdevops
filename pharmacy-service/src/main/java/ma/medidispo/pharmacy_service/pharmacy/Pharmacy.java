@@ -42,37 +42,104 @@ public class Pharmacy {
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "owner_user_id")
+    private UUID ownerUserId;
+
+    public UUID getOwnerUserId() { return ownerUserId; }
+
+    /** US03 : le pharmacien connecté devient propriétaire de la pharmacie qu'il inscrit. */
+    public void assignOwner(UUID owner) { this.ownerUserId = owner; }
+
     protected Pharmacy() {}
 
-    // Constructeur existant (import OSM, utilisé par US04) - inchangé
-    public Pharmacy(String name, String address, String phone, String openingHours,
-                    double latitude, double longitude, Long osmId, String source) {
-        this.name = name; this.address = address; this.phone = phone;
-        this.openingHours = openingHours; this.latitude = latitude;
-        this.longitude = longitude; this.osmId = osmId; this.source = source;
+    // Constructeur pour les pharmacies importées depuis OpenStreetMap
+    public Pharmacy(
+            String name,
+            String address,
+            String phone,
+            String openingHours,
+            double latitude,
+            double longitude,
+            Long osmId,
+            String source
+    ) {
+        this.name = name;
+        this.address = address;
+        this.phone = phone;
+        this.openingHours = openingHours;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.osmId = osmId;
+        this.source = source;
+        this.status = "UNVERIFIED";
     }
 
-    // Nouveau constructeur (inscription par un pharmacien, US03)
-    public Pharmacy(String name, String address, String phone, String openingHours,
-                    double latitude, double longitude, String licenseNumber) {
-        this.name = name; this.address = address; this.phone = phone;
-        this.openingHours = openingHours; this.latitude = latitude;
+    // Constructeur pour l'inscription par un pharmacien (US03)
+    public Pharmacy(
+            String name,
+            String address,
+            String phone,
+            String openingHours,
+            double latitude,
+            double longitude,
+            String licenseNumber
+    ) {
+        this.name = name;
+        this.address = address;
+        this.phone = phone;
+        this.openingHours = openingHours;
+        this.latitude = latitude;
         this.longitude = longitude;
         this.licenseNumber = licenseNumber;
         this.source = "REGISTERED";
         this.status = "PENDING";
     }
 
-    public UUID getId() { return id; }
-    public Long getOsmId() { return osmId; }
-    public String getName() { return name; }
-    public String getAddress() { return address; }
-    public String getPhone() { return phone; }
-    public String getOpeningHours() { return openingHours; }
-    public double getLatitude() { return latitude; }
-    public double getLongitude() { return longitude; }
-    public String getStatus() { return status; }
-    public String getSource() { return source; }
-    public String getLicenseNumber() { return licenseNumber; }
-    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public UUID getId() {
+        return id;
+    }
+
+    public Long getOsmId() {
+        return osmId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public String getOpeningHours() {
+        return openingHours;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public String getLicenseNumber() {
+        return licenseNumber;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

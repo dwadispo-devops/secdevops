@@ -213,4 +213,27 @@ class PharmacyControllerIntegrationTest {
                         .param("lng", "-7.988"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void theRegisteringPharmacistBecomesOwnerAndSeesItAsPending() throws Exception {
+        UUID pharmacist = UUID.randomUUID();
+        String license = "QA-" + UUID.randomUUID();
+        String token = Jwts.builder().subject(pharmacist.toString()).claim("role", "PHARMACIEN")
+                .expiration(Date.from(Instant.now().plusSeconds(900))).signWith(TEST_KEY).compact();
+
+        mvc.perform(post("/api/pharmacies").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(body("Pharmacie US03", license)))
+                .andExpect(status().isCreated());
+
+        assertThat(jdbc.queryForObject("SELECT owner_user_id FROM pharmacies WHERE license_number = ?", UUID.class, license))
+                .isEqualTo(pharmacist);
+
+        mvc.perform(get("/api/pharmacies/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
+
+        mvc.perform(get("/api/pharmacies/me").header("Authorization", "Bearer " + generateToken("PATIENT")))
+                .andExpect(status().isForbidden());
+    }
 }

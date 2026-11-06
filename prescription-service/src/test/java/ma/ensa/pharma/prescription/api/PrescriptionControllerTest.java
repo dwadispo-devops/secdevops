@@ -1,8 +1,8 @@
 package ma.ensa.pharma.prescription.api;
 
-import ma.ensa.pharma.prescription.api.dto.MedicationLineDto;
+import ma.ensa.pharma.prescription.api.dto.LigneOrdonnanceDto;
+import ma.ensa.pharma.prescription.api.dto.ProduitDto;
 import ma.ensa.pharma.prescription.api.dto.ReadPrescriptionResponse;
-import ma.ensa.pharma.prescription.domain.LineStatus;
 import ma.ensa.pharma.prescription.exception.PrescriptionException;
 import ma.ensa.pharma.prescription.service.PrescriptionReadingService;
 import org.junit.jupiter.api.Test;
@@ -41,15 +41,21 @@ class PrescriptionControllerTest {
     void returnsReadLines() throws Exception {
         when(readingService.read(any(), eq("ordo.png"), eq(true))).thenReturn(new ReadPrescriptionResponse(
                 UUID.randomUUID(), true,
-                List.of(new MedicationLineDto(1, "Doliprane 1g", "Doliprane", "1 g", "comprimé",
-                        "", "", null, LineStatus.LU)),
-                "mock", 1200, List.of()));
+                List.of(new LigneOrdonnanceDto(1, "DOLIPRANE 1 g", 2, 0.94,
+                        List.of(new ProduitDto("6118000040001", "DOLIPRANE 1000 MG, COMPRIME, 1 BOITE 8 COMPRIME")))),
+                List.of(), "mock", 1200));
 
         mockMvc.perform(multipart("/api/v1/prescriptions/read").file(file).param("consent", "true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.prescriptionDetected").value(true))
-                .andExpect(jsonPath("$.lines[0].name").value("Doliprane"))
-                .andExpect(jsonPath("$.lines[0].status").value("LU"));
+                // Format attendu par l'écran de vérification (US08)
+                .andExpect(jsonPath("$.lignes[0].id").value(1))
+                .andExpect(jsonPath("$.lignes[0].texteLu").value("DOLIPRANE 1 g"))
+                .andExpect(jsonPath("$.lignes[0].quantite").value(2))
+                .andExpect(jsonPath("$.lignes[0].score").value(0.94))
+                .andExpect(jsonPath("$.lignes[0].suggestions[0].id").value("6118000040001"))
+                .andExpect(jsonPath("$.lignes[0].suggestions[0].nom")
+                        .value("DOLIPRANE 1000 MG, COMPRIME, 1 BOITE 8 COMPRIME"));
     }
 
     @Test

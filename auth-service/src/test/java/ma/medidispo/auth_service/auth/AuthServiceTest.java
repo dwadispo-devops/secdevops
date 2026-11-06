@@ -76,4 +76,15 @@ class AuthServiceTest {
 
         assertThrows(EmailAlreadyUsedException.class, () -> authService.register(request()));
     }
+
+    @Test
+    void registerPharmacist_creeUnCompteAvecLeRolePharmacien() {
+        when(userRepository.existsByEmail("titima@test.ma")).thenReturn(false);
+        when(passwordEncoder.encode("Secret123")).thenReturn("HASH");
+        when(userRepository.saveAndFlush(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UserResponse response = authService.registerPharmacist(request());
+
+        assertEquals(Role.PHARMACIEN, response.role());
+    }
 }

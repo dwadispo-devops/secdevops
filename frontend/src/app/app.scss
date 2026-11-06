@@ -1,0 +1,9 @@
+
+/* Menu de navigation (TS04) */
+.topbar { position: sticky; top: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: .5rem; padding: .7rem 1.5rem; background: #176b55; }
+.brand { color: #fff; font-weight: 700; font-size: 1.15rem; text-decoration: none; }
+.topbar nav { display: flex; gap: .3rem; flex-wrap: wrap; }
+.topbar nav a, .topbar nav button { color: #e6f4ef; text-decoration: none; padding: .4rem .7rem; border-radius: 6px;
+  background: none; border: 0; font: inherit; cursor: pointer; }
+.topbar nav a:hover, .topbar nav button:hover, .topbar nav a.active { background: rgba(255, 255, 255, .18); color: #fff; }

@@ -71,6 +71,9 @@ public class SecurityConfig {
                                 "/api/pharmacies"
                         ).hasRole("PHARMACIEN")
 
+                        // US03 : mes pharmacies
+                        .requestMatchers(HttpMethod.GET, "/api/pharmacies/me").hasRole("PHARMACIEN")
+
                         // Consultation par identifiant : utilisateur connecté
                         .requestMatchers(
                                 HttpMethod.GET,

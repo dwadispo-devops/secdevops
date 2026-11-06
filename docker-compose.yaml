@@ -20,6 +20,7 @@ services:
       - "8080:8080"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MEDICATION_SERVICE_URL: http://medication-service:8083
     depends_on:
       - eureka-server
     restart: unless-stopped
@@ -98,6 +99,7 @@ services:
         condition: service_started
     environment:
       DB_URL: jdbc:postgresql://pharmacy-db:5432/pharmacydb
+      PRESCRIPTION_SERVICE_URL: http://prescription-service:8085
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
@@ -106,6 +108,93 @@ services:
       - "8082:8082"
     restart: unless-stopped
 
+  # =========================
+  # PRESCRIPTION DATABASE (PostgreSQL 16 + pgvector, prêt pour le RAG de l'US07)
+  # =========================
+  prescription-db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: prescriptiondb
+      POSTGRES_USER: ${DB_USER:?definir DB_USER dans .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?definir DB_PASSWORD dans .env}
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - prescription-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d prescriptiondb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # =========================
+  # PRESCRIPTION SERVICE (US06 envoi + TS05/US07 lecture IA)
+  # =========================
+  prescription-service:
+    build: ./prescription-service
+    image: prescription-service:dev
+    depends_on:
+      prescription-db:
+        condition: service_healthy
+      medication-service:
+        condition: service_started
+      eureka-server:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://prescription-db:5432/prescriptiondb
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
+      PRESCRIPTION_IMAGE_KEY: ${PRESCRIPTION_IMAGE_KEY:?definir PRESCRIPTION_IMAGE_KEY dans .env (openssl rand -base64 32)}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-cle-non-configuree}  # vraie cle dans .env pour /read (US07)
+      MEDICATION_SERVICE_URL: http://medication-service:8083
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    ports:
+      - "8085:8085"
+    restart: unless-stopped
+
+  # =========================
+  # MEDICATION DATABASE (catalogue CNOPS)
+  # =========================
+  medication-db:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_DB: medication_db
+      POSTGRES_USER: ${DB_USER:?definir DB_USER dans .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?definir DB_PASSWORD dans .env}
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - medication-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # =========================
+  # MEDICATION SERVICE (US05 + catalogue pour le RAG US07)
+  # =========================
+  medication-service:
+    build: ./medication-service
+    image: medication-service:dev
+    depends_on:
+      medication-db:
+        condition: service_healthy
+    environment:
+      DB_HOST: medication-db
+      DB_PORT: 5432
+      DB_NAME: medication_db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "8083:8083"
+    restart: unless-stopped
+
 volumes:
+  medication-db-data:
   auth-db-data:
   pharmacy-db-data:
+  prescription-db-data:

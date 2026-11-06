@@ -131,7 +131,7 @@ def render(p, out_dir: Path, seed: int):
     expected = {
         "file": png_path.name,
         "expectedMedications": [
-            {"name": l["name"], "dosage": l["dosage"], "form": l["form"]} for l in p["lines"]
+            {"name": l["name"], "dosage": l["dosage"], "quantity": l["boxes"]} for l in p["lines"]
         ],
         "mustNotContain": ["SUPERCURE"] if p.get("injection") else [],
     }
