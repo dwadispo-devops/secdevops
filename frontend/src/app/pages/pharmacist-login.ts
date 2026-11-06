@@ -16,6 +16,7 @@ import { Router } from '@angular/router';
         <button type="submit" [disabled]="busy() || !email || !password">Se connecter</button>
       </form>
       @if (error()) { <p role="alert">{{ error() }}</p> }
+      <p>Nouvelle pharmacie ? <a href="/pharmacien/inscription">Inscrire ma pharmacie</a></p>
     </main>
   `,
   styles: [`main { max-width: 480px; margin: 3rem auto; padding: 1.5rem; } form { display: grid; gap: .8rem; }

@@ -9,6 +9,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/pharmacist-login').then(m => m.PharmacistLoginPage),
   },
   {
+    path: 'pharmacien/inscription',
+    title: 'Inscrire ma pharmacie – DwaDispo',
+    loadComponent: () => import('./pages/pharmacist-register').then((m) => m.PharmacistRegisterPage),
+  },
+  {
     path: 'pharmacien/demandes',
     title: 'Demandes reçues - MédiDispo',
     loadComponent: () => import('./pages/pharmacist-requests').then(m => m.PharmacistRequestsPage),
