@@ -13,6 +13,7 @@ import { RouterLink } from '@angular/router';
       </p>
       <a class="btn" routerLink="/scan">Scanner mon ordonnance</a>
       <a class="btn" routerLink="/pharmacien/demandes">Espace pharmacien : demandes reçues</a>
+        <a class="btn" routerLink="/pharmacien/inscription">Vous êtes pharmacien ? Inscrire ma pharmacie</a>
     </section>
 
     <section class="cards">
