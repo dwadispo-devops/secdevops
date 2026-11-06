@@ -1,9 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Observable, catchError, map, of, switchMap, timer } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of, switchMap, timer } from 'rxjs';
 import { CartePharmaciesComponent, PointCarte } from '../components/carte-pharmacies';
 import { PharmacyService } from '../services/pharmacy.service';
 
@@ -11,6 +11,11 @@ import { PharmacyService } from '../services/pharmacy.service';
 export interface ReponsePharmacie {
   requestId: string; pharmacyId: string; pharmacyName: string; status: string; createdAt: string;
   prescriptionId: string | null; price: number | null; comment: string | null; respondedAt: string | null;
+}
+/** US12 : format de ReservationDtos.Reservation. status : ACTIVE, RETIREE, ANNULEE ou EXPIREE. */
+export interface Reservation {
+  id: string; requestId: string; pharmacyId: string; pharmacyName: string; code: string;
+  status: string; price: number | null; createdAt: string; expiresAt: string;
 }
 export interface DemandeSuivie { id: string; latitude: number; longitude: number; radiusM: number; }
 
@@ -38,7 +43,7 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
 
 @Component({
   selector: 'app-request-tracking',
-  imports: [DecimalPipe, RouterLink, CartePharmaciesComponent],
+  imports: [DatePipe, DecimalPipe, RouterLink, CartePharmaciesComponent],
   template: `
     <main class="suivi">
       <h1>Suivi de ma demande</h1>
@@ -52,6 +57,27 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
           }
         </p>
       }
+
+      @if (reservation(); as res) {
+        <section class="reservation" [attr.data-statut]="res.status" role="status">
+          @if (res.status === 'ACTIVE') {
+            <h2>✅ Réservation confirmée</h2>
+            <p>Présentez ce code au comptoir de <strong>{{ res.pharmacyName }}</strong> :</p>
+            <p class="code" aria-label="Code de retrait">{{ res.code }}</p>
+            <p>Valable jusqu’à <strong>{{ res.expiresAt | date: 'HH:mm' }}</strong>
+              @if (res.price !== null) { · {{ res.price | number: '1.2-2' }} DH, à régler en pharmacie }</p>
+          } @else if (res.status === 'EXPIREE') {
+            <h2>⌛ Réservation expirée</h2>
+            <p>Le code n’a pas été utilisé dans l’heure. Vous pouvez réserver à nouveau ci-dessous.</p>
+          } @else if (res.status === 'RETIREE') {
+            <h2>📦 Médicaments retirés</h2>
+            <p>Merci d’avoir utilisé DwaDispo.</p>
+          } @else {
+            <h2>Réservation annulée</h2>
+          }
+        </section>
+      }
+      @if (erreurReservation()) { <p role="alert">{{ erreurReservation() }}</p> }
 
       @if (reponses(); as liste) {
         <div class="resume" role="status">
@@ -73,10 +99,12 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
                     <strong>{{ r.pharmacyName }}</strong>
                     <span class="statut">{{ libelle(r.status) }}</span>
                   </div>
-                  @if (r.price !== null) { <p class="prix">{{ r.price | number:'1.2-2' }} DH</p> }
+                  @if (r.price !== null) { <p class="prix">{{ r.price | number: '1.2-2' }} DH</p> }
                   @if (r.comment) { <p class="commentaire">« {{ r.comment }} »</p> }
                   @if (r.status === 'AVAILABLE') {
-                    <button type="button" disabled title="La réservation arrive au sprint 3 (US12)">Réserver (bientôt)</button>
+                    <button type="button" (click)="reserver(r)" [disabled]="reservationActive() || reservant()">
+                      {{ reservant() ? 'Réservation…' : 'Réserver ici' }}
+                    </button>
                   }
                 </li>
               }
@@ -106,6 +134,10 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
   styles: [`
     .suivi { max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem; } h1 { color: #176b55; }
     .ref, .maj, .legende { color: #555; font-size: .9rem; } [role=alert] { color: #a11525; }
+    .reservation { margin: 1rem 0; padding: 1.2rem 1.5rem; border-radius: 12px; background: #e8f5ef; border: 2px solid #16a34a; max-width: 560px; }
+    .reservation[data-statut='EXPIREE'], .reservation[data-statut='ANNULEE'] { background: #f6f6f6; border-color: #9ca3af; }
+    .reservation h2 { margin: 0 0 .5rem; color: #166534; font-size: 1.2rem; } .reservation p { margin: .3rem 0; }
+    .code { font-size: 2.4rem; font-weight: 800; letter-spacing: .35em; color: #176b55; font-family: ui-monospace, monospace; margin: .6rem 0 !important; }
     .resume { display: flex; gap: .6rem; flex-wrap: wrap; margin: 1rem 0 .3rem; }
     .pastille { padding: .35rem .8rem; border-radius: 999px; background: #f1f1f1; font-weight: 600; }
     .pastille.ok { background: #dcfce7; color: #166534; } .pastille.ko { background: #fee2e2; color: #991b1b; }
@@ -116,7 +148,8 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
     .liste li[data-statut='AVAILABLE'] { border-left-color: #16a34a; } .liste li[data-statut='UNAVAILABLE'] { border-left-color: #dc2626; }
     .ligne { display: flex; justify-content: space-between; gap: .5rem; } .statut { font-size: .85rem; color: #555; }
     .prix { font-size: 1.2rem; font-weight: 700; color: #166534; margin: .3rem 0; } .commentaire { color: #444; margin: .2rem 0; }
-    .liste button { margin-top: .4rem; padding: .5rem 1rem; border-radius: 6px; border: 0; background: #176b55; color: #fff; opacity: .55; }
+    .liste button { margin-top: .4rem; padding: .55rem 1.1rem; border-radius: 6px; border: 0; background: #176b55; color: #fff; cursor: pointer; font: inherit; }
+    .liste button:disabled { opacity: .5; cursor: default; }
     .vide { color: #555; background: #f6f7f7; padding: .8rem 1rem; border-radius: 8px; }
     details { background: #fff; border: 1px solid #e3e3e3; border-radius: 10px; padding: .6rem 1rem; } summary { cursor: pointer; }
     .attente { columns: 2; font-size: .9rem; color: #555; }
@@ -134,8 +167,12 @@ export class RequestTrackingPage {
   readonly reponses = signal<ReponsePharmacie[] | null>(null);
   readonly erreur = signal('');
   readonly nonConnecte = signal(false);
+  readonly reservation = signal<Reservation | null>(null);
+  readonly reservant = signal(false);
+  readonly erreurReservation = signal('');
   private readonly coordonnees = signal<Record<string, { lat: number; lng: number }>>({});
 
+  readonly reservationActive = computed(() => this.reservation()?.status === 'ACTIVE');
   readonly centre = computed(() =>
     this.suivie && this.suivie.id === this.id ? { lat: this.suivie.latitude, lng: this.suivie.longitude } : null);
   readonly triees = computed(() => trierReponses(this.reponses() ?? []));
@@ -155,7 +192,9 @@ export class RequestTrackingPage {
       this.erreur.set('Aucune demande à suivre. Envoyez d’abord une demande de disponibilité.');
       return;
     }
-    timer(0, RAFRAICHISSEMENT_MS).pipe(switchMap(() => this.charger()), takeUntilDestroyed()).subscribe();
+    timer(0, RAFRAICHISSEMENT_MS)
+      .pipe(switchMap(() => forkJoin([this.charger(), this.chargerReservation()])), takeUntilDestroyed())
+      .subscribe();
 
     // Coordonnées des pharmacies : on réutilise l'API /nearby (US04) avec la position et le rayon de la demande.
     const s = this.suivie;
@@ -167,15 +206,19 @@ export class RequestTrackingPage {
     }
   }
 
-  charger(): Observable<void> {
+  private entetes(): { Authorization: string } | null {
     const token = sessionStorage.getItem('access_token');
-    this.nonConnecte.set(!token);
-    if (!token) {
+    return token ? { Authorization: `Bearer ${token}` } : null;
+  }
+
+  charger(): Observable<void> {
+    const headers = this.entetes();
+    this.nonConnecte.set(!headers);
+    if (!headers) {
       this.erreur.set('Connectez-vous avec le compte qui a envoyé la demande.');
       return of(undefined);
     }
-    return this.http.get<ReponsePharmacie[]>(`/api/availability-requests/${encodeURIComponent(this.id!)}/responses`,
-      { headers: { Authorization: `Bearer ${token}` } }).pipe(
+    return this.http.get<ReponsePharmacie[]>(`/api/availability-requests/${encodeURIComponent(this.id!)}/responses`, { headers }).pipe(
       map((liste): void => { this.erreur.set(''); this.reponses.set(liste ?? []); }),
       catchError(e => {
         this.erreur.set(e.status === 404 ? 'Demande introuvable pour ce compte.'
@@ -184,6 +227,32 @@ export class RequestTrackingPage {
         return of(undefined);
       }),
     );
+  }
+
+  /** US12 : réservation en cours pour cette demande (404 = aucune). */
+  chargerReservation(): Observable<void> {
+    const headers = this.entetes();
+    if (!headers) return of(undefined);
+    return this.http.get<Reservation>(`/api/availability-requests/${encodeURIComponent(this.id!)}/reservation`, { headers }).pipe(
+      map((res): void => { this.reservation.set(res); }),
+      catchError(() => of(undefined)),
+    );
+  }
+
+  /** US12 / EF21 : réserve chez une pharmacie qui a répondu « disponible » et obtient un code de retrait. */
+  reserver(r: ReponsePharmacie): void {
+    const headers = this.entetes();
+    if (!headers || this.reservant() || this.reservationActive()) return;
+    this.reservant.set(true);
+    this.erreurReservation.set('');
+    this.http.post<Reservation>(`/api/availability-requests/${encodeURIComponent(this.id!)}/reservations`,
+      { pharmacyId: r.pharmacyId }, { headers }).subscribe({
+      next: res => { this.reservant.set(false); this.reservation.set(res); },
+      error: e => {
+        this.reservant.set(false);
+        this.erreurReservation.set(e.error?.message ?? 'Réservation impossible pour le moment. Réessayez.');
+      },
+    });
   }
 
   nb(statut: string): number {

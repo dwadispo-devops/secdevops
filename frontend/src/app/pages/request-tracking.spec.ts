@@ -60,4 +60,32 @@ describe('RequestTrackingPage (suivi de la demande)', () => {
       reponse('D', 'PENDING', null), reponse('A', 'AVAILABLE', 60)]);
     expect(triees.map(r => r.pharmacyName)).toEqual(['A', 'B', 'D', 'C']);
   });
+
+  it('réserve chez une pharmacie disponible et affiche le code de retrait (US12)', () => {
+    sessionStorage.setItem(CLE_SUIVI, JSON.stringify({ id: ID, latitude: 0, longitude: 0, radiusM: 0 }));
+    sessionStorage.setItem('access_token', 'jwt');
+    const page = creer();
+    http.match(r => r.url === '/api/pharmacies/nearby').forEach(r => r.flush([]));
+    page.reserver(reponse('Ibn Nafis', 'AVAILABLE', 128.5));
+    const req = http.expectOne(`/api/availability-requests/${ID}/reservations`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ pharmacyId: 'Ibn Nafis' });
+    req.flush({ id: 'r1', requestId: ID, pharmacyId: 'Ibn Nafis', pharmacyName: 'Ibn Nafis', code: 'K7P2QX',
+      status: 'ACTIVE', price: 128.5, createdAt: '', expiresAt: '2026-11-06T01:00:00Z' });
+    expect(page.reservation()?.code).toBe('K7P2QX');
+    expect(page.reservationActive()).toBe(true);
+    page.reserver(reponse('Ibn Nafis', 'AVAILABLE', 128.5)); // déjà active : aucun nouvel appel
+  });
+
+  it('affiche le message du serveur si la réservation est refusée (RG04)', () => {
+    sessionStorage.setItem(CLE_SUIVI, JSON.stringify({ id: ID, latitude: 0, longitude: 0, radiusM: 0 }));
+    sessionStorage.setItem('access_token', 'jwt');
+    const page = creer();
+    http.match(r => r.url === '/api/pharmacies/nearby').forEach(r => r.flush([]));
+    page.reserver(reponse('Ibn Nafis', 'AVAILABLE', 128.5));
+    http.expectOne(`/api/availability-requests/${ID}/reservations`)
+      .flush({ message: 'Vous avez déjà 3 réservations actives' }, { status: 409, statusText: 'Conflict' });
+    expect(page.erreurReservation()).toContain('3 réservations actives');
+    expect(page.reservation()).toBeNull();
+  });
 });
