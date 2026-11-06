@@ -56,4 +56,7 @@ public interface PharmacyRepository extends JpaRepository<Pharmacy, UUID> {
             @Param("radius") double radius,
             @Param("limit") int limit
     );
+
+    /** US03 : pharmacies d'un pharmacien. */
+    java.util.List<Pharmacy> findByOwnerUserIdOrderByCreatedAtDesc(java.util.UUID owner);
 }

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,7 +33,7 @@ public class PharmacyController {
     // --- US03 : inscription d'une pharmacie par un pharmacien ---
 
     @PostMapping
-    public ResponseEntity<PharmacyPublic> register(@Valid @RequestBody RegisterPharmacyRequest request) {
+    public ResponseEntity<PharmacyPublic> register(Authentication auth, @Valid @RequestBody RegisterPharmacyRequest request) {
         Pharmacy pharmacy = new Pharmacy(
                 request.name(),
                 request.address(),
@@ -42,8 +43,16 @@ public class PharmacyController {
                 request.longitude(),
                 request.licenseNumber()
         );
+        pharmacy.assignOwner((UUID) auth.getPrincipal());
         Pharmacy saved = repository.save(pharmacy);
         return ResponseEntity.status(HttpStatus.CREATED).body(PharmacyPublic.from(saved));
+    }
+
+    /** US03 : pharmacies du pharmacien connecté, avec leur statut (PENDING tant qu'elles ne sont pas validées). */
+    @GetMapping("/me")
+    public List<PharmacyPublic> mine(Authentication auth) {
+        return repository.findByOwnerUserIdOrderByCreatedAtDesc((UUID) auth.getPrincipal()).stream()
+                .map(PharmacyPublic::from).toList();
     }
 
     @GetMapping("/{id}")

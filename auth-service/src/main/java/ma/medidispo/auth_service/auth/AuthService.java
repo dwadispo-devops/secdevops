@@ -22,6 +22,15 @@ public class AuthService {
     }
 
     public UserResponse register(RegisterRequest request) {
+        return register(request, Role.PATIENT);
+    }
+
+    /** US03 : compte pharmacien. Sa pharmacie reste « en attente » tant qu'un administrateur ne l'a pas validée (EF06). */
+    public UserResponse registerPharmacist(RegisterRequest request) {
+        return register(request, Role.PHARMACIEN);
+    }
+
+    private UserResponse register(RegisterRequest request, Role role) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
 
         if (userRepository.existsByEmail(email)) {
@@ -33,7 +42,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setFirstName(request.firstName().trim());
         user.setLastName(request.lastName().trim());
-        user.setRole(Role.PATIENT);
+        user.setRole(role);
 
         try {
             return UserResponse.from(userRepository.saveAndFlush(user));

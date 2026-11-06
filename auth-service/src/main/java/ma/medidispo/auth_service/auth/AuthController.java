@@ -27,6 +27,13 @@ public class AuthController {
         return authService.register(request);
     }
 
+    /** US03 : inscription d'un pharmacien (sa pharmacie sera validée par un administrateur, EF06). */
+    @PostMapping("/register/pharmacien")
+    @ResponseStatus(HttpStatus.CREATED)
+    public UserResponse registerPharmacist(@Valid @RequestBody RegisterRequest request) {
+        return authService.registerPharmacist(request);
+    }
+
     @PostMapping("/login")
     public TokenResponse login(@Valid @RequestBody LoginRequest request) {
         return tokenService.login(request);

@@ -47,6 +47,9 @@ public class Pharmacy {
 
     public UUID getOwnerUserId() { return ownerUserId; }
 
+    /** US03 : le pharmacien connecté devient propriétaire de la pharmacie qu'il inscrit. */
+    public void assignOwner(UUID owner) { this.ownerUserId = owner; }
+
     protected Pharmacy() {}
 
     // Constructeur pour les pharmacies importées depuis OpenStreetMap
