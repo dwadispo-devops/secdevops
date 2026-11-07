@@ -19,6 +19,7 @@ class StoredPrescriptionControllerTest {
     @Autowired MockMvc mvc;
     @MockitoBean PatientJwtService patients;
     @MockitoBean ReviewDelegationService delegation;
+    @MockitoBean PurgeDelegationService purgeDelegation;
     @MockitoBean StoredReadingService readings;
     @MockitoBean PrescriptionStorageService storage;
     UUID patient=UUID.randomUUID(), id=UUID.randomUUID();
@@ -43,5 +44,38 @@ class StoredPrescriptionControllerTest {
         when(storage.loadImage(patient,id)).thenThrow(PrescriptionException.notFound());
         mvc.perform(get("/internal/prescriptions/"+id+"/image").header("Authorization","Bearer server"))
             .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void purgeImage_validToken_returns204AndCallsDelete() throws Exception {
+        when(purgeDelegation.patient("Bearer purge-token", id)).thenReturn(patient);
+        doNothing().when(storage).deleteImage(patient, id);
+
+        mvc.perform(delete("/internal/prescriptions/" + id + "/image")
+                .header("Authorization", "Bearer purge-token"))
+                .andExpect(status().isNoContent());
+
+        verify(storage).deleteImage(patient, id);
+    }
+
+    @Test
+    void purgeImage_alreadyAbsentOrNonExistent_returns204Idempotent() throws Exception {
+        when(purgeDelegation.patient("Bearer purge-token", id)).thenReturn(patient);
+        doThrow(PrescriptionException.notFound()).when(storage).deleteImage(patient, id);
+
+        mvc.perform(delete("/internal/prescriptions/" + id + "/image")
+                .header("Authorization", "Bearer purge-token"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void purgeImage_invalidToken_returns401() throws Exception {
+        when(purgeDelegation.patient(any(), eq(id))).thenThrow(PrescriptionException.unauthenticated());
+
+        mvc.perform(delete("/internal/prescriptions/" + id + "/image")
+                .header("Authorization", "Bearer bad-token"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(storage);
     }
 }
