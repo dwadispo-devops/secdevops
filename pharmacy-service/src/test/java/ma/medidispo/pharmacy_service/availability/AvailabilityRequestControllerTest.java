@@ -21,7 +21,7 @@ class AvailabilityRequestControllerTest {
         var associations = mock(AvailabilityRequestPharmacyRepository.class);
         when(jwt.authenticatedPatientId("Bearer patient"))
                 .thenReturn(java.util.UUID.randomUUID());
-        var controller = new AvailabilityRequestController(repository, items, jwt, search, associations);
+        var controller = new AvailabilityRequestController(org.mockito.Mockito.mock(ma.medidispo.pharmacy_service.notification.NotificationService.class), repository, items, jwt, search, associations);
         var response = controller.create("Bearer patient",
                 new AvailabilityRequestController.CreateRequest(latitude, longitude, 100,
                         java.util.List.of(new AvailabilityRequestController.Medication("Doliprane", 1))));
@@ -39,7 +39,7 @@ class AvailabilityRequestControllerTest {
                 .thenThrow(new SecurityException("Token Bearer manquant"));
 
         AvailabilityRequestController controller =
-                new AvailabilityRequestController(repository, itemRepository, jwtService, mock(AvailabilityPharmacySearchService.class), mock(AvailabilityRequestPharmacyRepository.class));
+                new AvailabilityRequestController(org.mockito.Mockito.mock(ma.medidispo.pharmacy_service.notification.NotificationService.class), repository, itemRepository, jwtService, mock(AvailabilityPharmacySearchService.class), mock(AvailabilityRequestPharmacyRepository.class));
 
         ResponseEntity<?> response = controller.create(
                 null,
@@ -70,7 +70,7 @@ class AvailabilityRequestControllerTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         AvailabilityRequestController controller =
-                new AvailabilityRequestController(repository, itemRepository, jwtService, mock(AvailabilityPharmacySearchService.class), mock(AvailabilityRequestPharmacyRepository.class));
+                new AvailabilityRequestController(org.mockito.Mockito.mock(ma.medidispo.pharmacy_service.notification.NotificationService.class), repository, itemRepository, jwtService, mock(AvailabilityPharmacySearchService.class), mock(AvailabilityRequestPharmacyRepository.class));
 
         ResponseEntity<?> response = controller.create(
                 "Bearer valid-token",
@@ -121,7 +121,7 @@ class AvailabilityRequestControllerTest {
                 .thenThrow(error);
 
         AvailabilityRequestController controller =
-                new AvailabilityRequestController(
+                new AvailabilityRequestController(org.mockito.Mockito.mock(ma.medidispo.pharmacy_service.notification.NotificationService.class), 
                         repository,
                         itemRepository,
                         jwtService,

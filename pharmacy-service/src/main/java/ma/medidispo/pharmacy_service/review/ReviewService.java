@@ -13,8 +13,9 @@ import static ma.medidispo.pharmacy_service.review.ReviewDtos.*;
 public class ReviewService {
     private final ReviewRepository repository;
     private final PrescriptionClient prescriptions;
-    public ReviewService(ReviewRepository repository, PrescriptionClient prescriptions) {
-        this.repository=repository; this.prescriptions=prescriptions;
+    private final ma.medidispo.pharmacy_service.notification.NotificationService notifications;
+    public ReviewService(ma.medidispo.pharmacy_service.notification.NotificationService notifications, ReviewRepository repository, PrescriptionClient prescriptions) {
+        this.notifications=notifications; this.repository=repository; this.prescriptions=prescriptions;
     }
     public List<Request> inbox(UUID owner) { return repository.inbox(owner); }
     private Request assigned(UUID owner, UUID pharmacy, UUID request) {
@@ -35,6 +36,7 @@ public class ReviewService {
         }
         if (repository.respond(owner, pharmacy, request, response)!=1)
             throw new ResponseStatusException(CONFLICT, "Une réponse a déjà été enregistrée");
+        notifications.reponsePharmacie(request, pharmacy); // US14
         return assigned(owner, pharmacy, request);
     }
     public Prescription prescription(UUID owner, UUID pharmacy, UUID request) {
