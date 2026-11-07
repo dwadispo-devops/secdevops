@@ -101,4 +101,28 @@ public class NotificationRepository {
     public int markAllRead(UUID user) {
         return jdbc.update("UPDATE notifications SET read_at = now() WHERE user_id = ? AND read_at IS NULL", user);
     }
+
+    // ---------- US14 : boîte d'envoi des e-mails ----------
+
+    /** Verrouille le lot (SKIP LOCKED) pour qu'une autre instance du service ne l'envoie pas en double. */
+    public List<EmailDtos.EmailEnAttente> emailsEnAttente(int limite) {
+        return jdbc.query("""
+            SELECT id, user_id, title, message, link FROM notifications
+            WHERE email_status = 'PENDING' ORDER BY created_at LIMIT ? FOR UPDATE SKIP LOCKED
+            """, (rs, n) -> new EmailDtos.EmailEnAttente(rs.getObject("id", UUID.class), rs.getObject("user_id", UUID.class),
+                rs.getString("title"), rs.getString("message"), rs.getString("link")), limite);
+    }
+
+    public void marquerEmail(UUID id, String statut) {
+        jdbc.update("UPDATE notifications SET email_status = ?, emailed_at = CASE WHEN ? = 'SENT' THEN now() ELSE emailed_at END WHERE id = ?",
+            statut, statut, id);
+    }
+
+    public void echecEmail(UUID id, int maxEssais) {
+        jdbc.update("""
+            UPDATE notifications SET email_attempts = email_attempts + 1,
+                   email_status = CASE WHEN email_attempts + 1 >= ? THEN 'FAILED' ELSE 'PENDING' END
+            WHERE id = ?
+            """, maxEssais, id);
+    }
 }

@@ -36,6 +36,11 @@
     </dependencyManagement>
 
     <dependencies>
+        <!-- US14 : envoi des e-mails de notification -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
 
         <!-- Application -->
         <dependency>

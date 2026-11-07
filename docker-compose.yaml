@@ -58,6 +58,7 @@ services:
         condition: service_started
     environment:
       DB_URL: jdbc:postgresql://auth-db:5432/authdb
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?definir INTERNAL_API_TOKEN dans .env}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
@@ -100,6 +101,12 @@ services:
     environment:
       DB_URL: jdbc:postgresql://pharmacy-db:5432/pharmacydb
       PRESCRIPTION_SERVICE_URL: http://prescription-service:8085
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?definir INTERNAL_API_TOKEN dans .env}
+      AUTH_SERVICE_URL: http://auth-service:8081
+      NOTIFICATIONS_EMAIL_ENABLED: "true"
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      FRONT_URL: http://localhost:4200
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
@@ -191,6 +198,15 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
     ports:
       - "8083:8083"
+    restart: unless-stopped
+
+  # =========================
+  # MAILPIT (US14) : faux serveur e-mail, interface sur http://localhost:8025
+  # =========================
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "127.0.0.1:8025:8025"
     restart: unless-stopped
 
 volumes:
