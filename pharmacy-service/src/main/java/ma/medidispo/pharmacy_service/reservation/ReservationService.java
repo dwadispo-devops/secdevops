@@ -25,7 +25,10 @@ public class ReservationService {
     private final ReservationRepository repository;
     private final PickupCodeGenerator codes;
 
-    public ReservationService(ReservationRepository repository, PickupCodeGenerator codes) {
+    private final ma.medidispo.pharmacy_service.notification.NotificationService notifications;
+
+    public ReservationService(ma.medidispo.pharmacy_service.notification.NotificationService notifications, ReservationRepository repository, PickupCodeGenerator codes) {
+        this.notifications = notifications;
         this.repository = repository;
         this.codes = codes;
     }
@@ -46,6 +49,7 @@ public class ReservationService {
             throw new ResponseStatusException(CONFLICT, "Vous avez déjà " + MAX_ACTIVES
                 + " réservations actives : retirez-en une ou attendez son expiration.");
         UUID id = repository.insert(request, pharmacy, patient, codeLibre(pharmacy), price, (int) VALIDITE.toSeconds());
+        notifications.reservation(id); // US14
         return repository.find(id).orElseThrow();
     }
 
@@ -95,6 +99,7 @@ public class ReservationService {
     public ReservationRepository.ValidatedPickup validatePickup(UUID ownerUserId, UUID pharmacyId, UUID reservationId) {
         var validated = repository.markAsPickedUp(ownerUserId, pharmacyId, reservationId);
         if (validated.isPresent()) {
+            notifications.retrait(validated.get().id()); // US14
             return validated.get();
         }
 

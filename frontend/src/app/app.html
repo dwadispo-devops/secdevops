@@ -7,6 +7,7 @@
     <a routerLink="/suivi-demande" routerLinkActive="active">Ma demande</a>
     <a routerLink="/pharmacien/demandes" routerLinkActive="active">Espace pharmacien</a>
     @if (connected()) {
+      <app-notification-bell />
       <button type="button" (click)="logout()">Déconnexion</button>
     } @else {
       <a routerLink="/connexion" routerLinkActive="active">Connexion</a>

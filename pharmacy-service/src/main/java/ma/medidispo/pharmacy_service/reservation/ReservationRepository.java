@@ -34,7 +34,19 @@ public class ReservationRepository {
     }
 
     public int expireDue() {
-        return jdbc.update("UPDATE reservations SET status = 'EXPIREE' WHERE status = 'ACTIVE' AND expires_at <= now()");
+        // RG03 + US14 : expire les réservations dépassées et prévient chaque patient, en une seule requête.
+        return jdbc.update("""
+            WITH expirees AS (
+                UPDATE reservations SET status = 'EXPIREE'
+                WHERE status = 'ACTIVE' AND expires_at <= now()
+                RETURNING patient_id, request_id
+            )
+            INSERT INTO notifications (user_id, type, title, message, link)
+            SELECT patient_id, 'RESERVATION_EXPIREE', 'Réservation expirée',
+                   'Votre code de retrait n''a pas été utilisé dans l''heure. Vous pouvez réserver à nouveau.',
+                   '/suivi-demande/' || request_id
+            FROM expirees
+            """);
     }
 
     public boolean requestBelongs(UUID patient, UUID request) {
