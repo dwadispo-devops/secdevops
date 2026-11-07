@@ -6,7 +6,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import static org.springframework.http.HttpStatus.*;
 import static ma.medidispo.pharmacy_service.reservation.ReservationDtos.*;
 
@@ -17,11 +19,15 @@ public class ReservationService {
     /** RG04 : au plus 3 réservations actives par patient. */
     static final int MAX_ACTIVES = 3;
 
+    /** Format du code de retrait : exactement 6 caractères de l'alphabet PickupCodeGenerator. */
+    private static final Pattern CODE_PATTERN = Pattern.compile("^[A-HJ-NP-Z2-9]{6}$");
+
     private final ReservationRepository repository;
     private final PickupCodeGenerator codes;
 
     public ReservationService(ReservationRepository repository, PickupCodeGenerator codes) {
-        this.repository = repository; this.codes = codes;
+        this.repository = repository;
+        this.codes = codes;
     }
 
     @Transactional
@@ -56,6 +62,51 @@ public class ReservationService {
             throw new ResponseStatusException(NOT_FOUND, "Demande introuvable");
         return repository.latest(patient, request)
             .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Aucune réservation pour cette demande"));
+    }
+
+    /**
+     * Recherche d'une réservation active pour le pharmacien (US13).
+     * Normalise le code (trim + majuscules) et valide le format.
+     * En cas de code invalide (format), renvoie 400.
+     * En cas de code introuvable/expiré/autre pharmacie, renvoie une 404 uniforme.
+     */
+    public PickupView lookupPickup(UUID ownerUserId, UUID pharmacyId, String rawCode) {
+        String normalizedCode = normalizeCode(rawCode);
+        if (!CODE_PATTERN.matcher(normalizedCode).matches()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Format de code de retrait invalide (6 caractères attendus)");
+        }
+
+        var entity = repository.findActiveForPickup(ownerUserId, pharmacyId, normalizedCode)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Réservation introuvable ou expirée"));
+
+        List<MedicationItem> items = repository.findItemsForRequest(entity.requestId());
+        return new PickupView(entity.id(), entity.code(), entity.expiresAt(), entity.price(), items);
+    }
+
+    /**
+     * Valide le retrait d'une réservation par le pharmacien (US13).
+     * UPDATE atomique en base avec vérification de propriété et non-expiration.
+     * Si déjà retirée dans cette même pharmacie : 409 Conflict.
+     * Sinon si introuvable, expirée ou autre pharmacie : 404 Not Found.
+     */
+    @Transactional
+    public PickupConfirmation validatePickup(UUID ownerUserId, UUID pharmacyId, UUID reservationId) {
+        var validated = repository.markAsPickedUp(ownerUserId, pharmacyId, reservationId);
+        if (validated.isPresent()) {
+            return new PickupConfirmation(validated.get().id(), "RETIREE", validated.get().pickedUpAt());
+        }
+
+        // Si l'update atomique n'a touché aucune ligne, vérifier si elle a déjà été retirée dans cette pharmacie
+        if (repository.isAlreadyPickedUp(ownerUserId, pharmacyId, reservationId)) {
+            throw new ResponseStatusException(CONFLICT, "Cette réservation a déjà été retirée");
+        }
+
+        // Sinon, même 404 uniforme (introuvable, expirée, ou pharmacie non propriétaire)
+        throw new ResponseStatusException(NOT_FOUND, "Réservation introuvable ou expirée");
+    }
+
+    private String normalizeCode(String code) {
+        return code == null ? "" : code.trim().toUpperCase();
     }
 
     /** RG03 : sans retrait dans l'heure, la réservation passe à EXPIREE. */
