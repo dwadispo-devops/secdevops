@@ -1,6 +1,9 @@
 package ma.medidispo.pharmacy_service.reservation;
 
 import jakarta.validation.Valid;
+import ma.medidispo.pharmacy_service.review.PrescriptionClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -14,8 +17,20 @@ import static ma.medidispo.pharmacy_service.reservation.ReservationDtos.*;
  */
 @RestController
 public class ReservationController {
+    private static final Logger log = LoggerFactory.getLogger(ReservationController.class);
+
     private final ReservationService service;
-    public ReservationController(ReservationService service) { this.service = service; }
+    private final ReservationRepository repository;
+    private final PrescriptionClient prescriptionClient;
+
+    public ReservationController(ReservationService service,
+                                 ReservationRepository repository,
+                                 PrescriptionClient prescriptionClient) {
+        this.service = service;
+        this.repository = repository;
+        this.prescriptionClient = prescriptionClient;
+    }
+
     private UUID user(Authentication auth) { return (UUID) auth.getPrincipal(); }
 
     // --- US12 : Patient ---
@@ -40,6 +55,19 @@ public class ReservationController {
 
     @PostMapping("/api/pharmacies/{pharmacy}/reservations/{id}/pickup")
     public PickupConfirmation pickup(Authentication auth, @PathVariable UUID pharmacy, @PathVariable UUID id) {
-        return service.validatePickup(user(auth), pharmacy, id);
+        var validated = service.validatePickup(user(auth), pharmacy, id);
+
+        boolean imageSupprimee = true;
+        var prescriptionId = repository.findPrescriptionId(validated.requestId());
+        if (prescriptionId.isPresent()) {
+            try {
+                prescriptionClient.purgeImage(validated.patientId(), prescriptionId.get());
+            } catch (Exception ex) {
+                log.warn("Échec de la purge de l'image pour la réservation {} : {}", id, ex.getClass().getSimpleName());
+                imageSupprimee = false;
+            }
+        }
+
+        return new PickupConfirmation(validated.id(), "RETIREE", validated.pickedUpAt(), imageSupprimee);
     }
 }

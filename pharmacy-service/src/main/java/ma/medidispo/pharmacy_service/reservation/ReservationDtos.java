@@ -22,5 +22,5 @@ public final class ReservationDtos {
     public record PickupView(UUID id, String code, OffsetDateTime expiresAt, BigDecimal price, List<MedicationItem> medications) {}
 
     /** Réponse de confirmation lors de la validation du retrait. */
-    public record PickupConfirmation(UUID id, String status, OffsetDateTime pickedUpAt) {}
+    public record PickupConfirmation(UUID id, String status, OffsetDateTime pickedUpAt, boolean imageSupprimee) {}
 }

@@ -174,4 +174,14 @@ public class ReservationRepository {
         Integer count = jdbc.queryForObject(sql, Integer.class, reservationId, pharmacyId, ownerUserId);
         return count != null && count > 0;
     }
+
+    /**
+     * Retrouve l'éventuel prescription_id lié à la demande de disponibilité (US13 - RG06).
+     * Renvoie Optional.empty() si prescription_id est NULL (saisie manuelle sans photo).
+     */
+    public Optional<UUID> findPrescriptionId(UUID requestId) {
+        String sql = "SELECT prescription_id FROM availability_requests WHERE id = ?";
+        return jdbc.query(sql, (rs, n) -> rs.getObject("prescription_id", UUID.class), requestId)
+                .stream().filter(java.util.Objects::nonNull).findFirst();
+    }
 }

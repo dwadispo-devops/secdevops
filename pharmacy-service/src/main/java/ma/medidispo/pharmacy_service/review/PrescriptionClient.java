@@ -37,6 +37,12 @@ public class PrescriptionClient {
             .audience().add("prescription-review").and().claim("prescriptionId", prescription.toString())
             .issuedAt(Date.from(now)).expiration(Date.from(now.plusSeconds(30))).signWith(key).compact();
     }
+    String purgeToken(UUID patient, UUID prescription) {
+        var now = Instant.now();
+        return Jwts.builder().issuer("pharmacy-service").subject(patient.toString())
+            .audience().add("prescription-purge").and().claim("prescriptionId", prescription.toString())
+            .issuedAt(Date.from(now)).expiration(Date.from(now.plusSeconds(30))).signWith(key).compact();
+    }
     public ReviewDtos.Prescription details(UUID patient, UUID prescription) {
         return call(() -> client.get().uri("/internal/prescriptions/{id}", prescription)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + token(patient, prescription))
@@ -46,6 +52,14 @@ public class PrescriptionClient {
         return call(() -> client.get().uri("/internal/prescriptions/{id}/image", prescription)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + token(patient, prescription))
             .retrieve().toEntity(byte[].class));
+    }
+    public void purgeImage(UUID patient, UUID prescription) {
+        call(() -> {
+            client.delete().uri("/internal/prescriptions/{id}/image", prescription)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + purgeToken(patient, prescription))
+                .retrieve().toBodilessEntity();
+            return null;
+        });
     }
     private <T> T call(java.util.function.Supplier<T> action) {
         try { return action.get(); }

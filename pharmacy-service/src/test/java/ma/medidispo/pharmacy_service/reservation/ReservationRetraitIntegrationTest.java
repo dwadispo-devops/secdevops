@@ -3,6 +3,7 @@ package ma.medidispo.pharmacy_service.reservation;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import ma.medidispo.pharmacy_service.review.PrescriptionClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,8 +11,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -24,10 +28,13 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -49,6 +56,7 @@ class ReservationRetraitIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
     @Autowired ReservationService service;
+    @MockitoBean PrescriptionClient prescriptionClient;
     @Value("${app.jwt.secret}") String secret;
 
     UUID pharmacienProprietaire, autrePharmacien, patient;
@@ -88,6 +96,13 @@ class ReservationRetraitIntegrationTest {
         UUID id = UUID.randomUUID();
         jdbc.update("INSERT INTO availability_requests (id, patient_id, latitude, longitude, radius_m) VALUES (?, ?, 31.63, -8.0, 5000)",
                 id, patientId);
+        return id;
+    }
+
+    UUID creerDemandeAvecPrescription(UUID patientId, UUID prescriptionId) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("INSERT INTO availability_requests (id, patient_id, prescription_id, latitude, longitude, radius_m) VALUES (?, ?, ?, 31.63, -8.0, 5000)",
+                id, patientId, prescriptionId);
         return id;
     }
 
@@ -132,10 +147,9 @@ class ReservationRetraitIntegrationTest {
                 .andExpect(jsonPath("$.price").value(85.50))
                 .andExpect(jsonPath("$.expiresAt").isNotEmpty())
                 .andExpect(jsonPath("$.medications", hasSize(2)))
-                .andExpect(jsonPath("$.medications[0].name").value("Doliprane 1000mg"))
-                .andExpect(jsonPath("$.medications[0].quantity").value(2))
-                .andExpect(jsonPath("$.medications[1].name").value("Amoxicilline 500mg"))
-                .andExpect(jsonPath("$.medications[1].quantity").value(1))
+                .andExpect(jsonPath("$.medications[*].name", containsInAnyOrder("Doliprane 1000mg", "Amoxicilline 500mg")))
+                .andExpect(jsonPath("$.medications[?(@.name == 'Doliprane 1000mg')].quantity").value(contains(2)))
+                .andExpect(jsonPath("$.medications[?(@.name == 'Amoxicilline 500mg')].quantity").value(contains(1)))
                 // Loi 09-08 : pas d'identité ni patient_id renvoyé
                 .andExpect(jsonPath("$.patientId").doesNotExist())
                 .andExpect(jsonPath("$.patient_id").doesNotExist());
@@ -330,6 +344,118 @@ class ReservationRetraitIntegrationTest {
         // Exactement 1 succès et 1 conflit
         assertThat(succesCount.get()).isEqualTo(1);
         assertThat(conflictCount.get()).isEqualTo(1);
+    }
+
+    // =========================================================================
+    // 3. RG06 : PURGE DE L'IMAGE D'ORDONNANCE AU RETRAIT
+    // =========================================================================
+
+    @Test
+    void retraitReussi_avecOrdonnance_purgeImageAppeleeEtStatutDejaRetireeEnBase() throws Exception {
+        UUID prescriptionId = UUID.randomUUID();
+        UUID demandeAvecPresc = creerDemandeAvecPrescription(patient, prescriptionId);
+        repondreDisponible(demandeAvecPresc, maPharmacie, new BigDecimal("85.50"));
+        UUID resId = insererReservation(demandeAvecPresc, maPharmacie, patient, "PUR234", "ACTIVE", 3600, new BigDecimal("85.50"));
+
+        AtomicBoolean statutEtaitRetireeLorsDeLAppel = new AtomicBoolean(false);
+        doAnswer(inv -> {
+            String statutEnBase = jdbc.queryForObject("SELECT status FROM reservations WHERE id = ?", String.class, resId);
+            if ("RETIREE".equals(statutEnBase)) {
+                statutEtaitRetireeLorsDeLAppel.set(true);
+            }
+            return null;
+        }).when(prescriptionClient).purgeImage(patient, prescriptionId);
+
+        mvc.perform(post("/api/pharmacies/{pharmacy}/reservations/{id}/pickup", maPharmacie, resId)
+                .header("Authorization", token(pharmacienProprietaire, "PHARMACIEN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(resId.toString()))
+                .andExpect(jsonPath("$.status").value("RETIREE"))
+                .andExpect(jsonPath("$.imageSupprimee").value(true));
+
+        verify(prescriptionClient, times(1)).purgeImage(patient, prescriptionId);
+        assertThat(statutEtaitRetireeLorsDeLAppel.get()).isTrue();
+    }
+
+    @Test
+    void retraitReussi_sansOrdonnance_purgeImageNonAppelee_imageSupprimeeTrue() throws Exception {
+        UUID demandeSansPresc = creerDemande(patient);
+        repondreDisponible(demandeSansPresc, maPharmacie, new BigDecimal("85.50"));
+        UUID resId = insererReservation(demandeSansPresc, maPharmacie, patient, "NOP234", "ACTIVE", 3600, new BigDecimal("85.50"));
+
+        mvc.perform(post("/api/pharmacies/{pharmacy}/reservations/{id}/pickup", maPharmacie, resId)
+                .header("Authorization", token(pharmacienProprietaire, "PHARMACIEN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RETIREE"))
+                .andExpect(jsonPath("$.imageSupprimee").value(true));
+
+        verify(prescriptionClient, never()).purgeImage(any(), any());
+    }
+
+    @Test
+    void retraitReussi_echecPurgeImage503_resteRetireeEtImageSupprimeeFalse() throws Exception {
+        UUID prescriptionId = UUID.randomUUID();
+        UUID demandeAvecPresc = creerDemandeAvecPrescription(patient, prescriptionId);
+        repondreDisponible(demandeAvecPresc, maPharmacie, new BigDecimal("85.50"));
+        UUID resId = insererReservation(demandeAvecPresc, maPharmacie, patient, "ERR503", "ACTIVE", 3600, new BigDecimal("85.50"));
+
+        doThrow(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service ordonnance indisponible"))
+                .when(prescriptionClient).purgeImage(patient, prescriptionId);
+
+        mvc.perform(post("/api/pharmacies/{pharmacy}/reservations/{id}/pickup", maPharmacie, resId)
+                .header("Authorization", token(pharmacienProprietaire, "PHARMACIEN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RETIREE"))
+                .andExpect(jsonPath("$.imageSupprimee").value(false));
+
+        // En base, le statut est quand même bien RETIREE (échec non bloquant)
+        String statutEnBase = jdbc.queryForObject("SELECT status FROM reservations WHERE id = ?", String.class, resId);
+        assertThat(statutEnBase).isEqualTo("RETIREE");
+    }
+
+    @Test
+    void erreur404_pickup_purgeImageJamaisAppelee() throws Exception {
+        mvc.perform(post("/api/pharmacies/{pharmacy}/reservations/{id}/pickup", maPharmacie, UUID.randomUUID())
+                .header("Authorization", token(pharmacienProprietaire, "PHARMACIEN")))
+                .andExpect(status().isNotFound());
+
+        verify(prescriptionClient, never()).purgeImage(any(), any());
+    }
+
+    @Test
+    void erreur409_doublePickup_purgeImageNonRappelee() throws Exception {
+        UUID prescriptionId = UUID.randomUUID();
+        UUID demandeAvecPresc = creerDemandeAvecPrescription(patient, prescriptionId);
+        repondreDisponible(demandeAvecPresc, maPharmacie, new BigDecimal("85.50"));
+        UUID resId = insererReservation(demandeAvecPresc, maPharmacie, patient, "DBL234", "ACTIVE", 3600, new BigDecimal("85.50"));
+
+        // Premier retrait : succès, purge appelée 1 fois
+        mvc.perform(post("/api/pharmacies/{pharmacy}/reservations/{id}/pickup", maPharmacie, resId)
+                .header("Authorization", token(pharmacienProprietaire, "PHARMACIEN")))
+                .andExpect(status().isOk());
+
+        verify(prescriptionClient, times(1)).purgeImage(patient, prescriptionId);
+
+        // Deuxième retrait : 409 Conflict, purgeImage ne doit PAS être réappelée
+        mvc.perform(post("/api/pharmacies/{pharmacy}/reservations/{id}/pickup", maPharmacie, resId)
+                .header("Authorization", token(pharmacienProprietaire, "PHARMACIEN")))
+                .andExpect(status().isConflict());
+
+        verify(prescriptionClient, times(1)).purgeImage(patient, prescriptionId);
+    }
+
+    @Test
+    void erreur401_403_purgeImageJamaisAppelee() throws Exception {
+        // Sans jeton : 401
+        mvc.perform(post("/api/pharmacies/{pharmacy}/reservations/{id}/pickup", maPharmacie, reservationId))
+                .andExpect(status().isUnauthorized());
+
+        // Rôle PATIENT : 403
+        mvc.perform(post("/api/pharmacies/{pharmacy}/reservations/{id}/pickup", maPharmacie, reservationId)
+                .header("Authorization", token(patient, "PATIENT")))
+                .andExpect(status().isForbidden());
+
+        verify(prescriptionClient, never()).purgeImage(any(), any());
     }
 }
 

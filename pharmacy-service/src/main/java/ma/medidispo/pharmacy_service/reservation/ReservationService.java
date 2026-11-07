@@ -88,12 +88,14 @@ public class ReservationService {
      * UPDATE atomique en base avec vérification de propriété et non-expiration.
      * Si déjà retirée dans cette même pharmacie : 409 Conflict.
      * Sinon si introuvable, expirée ou autre pharmacie : 404 Not Found.
+     * Renvoie ValidatedPickup (id, requestId, patientId, pickedUpAt) pour permettre
+     * l'orchestration de la purge d'image hors transaction par le contrôleur.
      */
     @Transactional
-    public PickupConfirmation validatePickup(UUID ownerUserId, UUID pharmacyId, UUID reservationId) {
+    public ReservationRepository.ValidatedPickup validatePickup(UUID ownerUserId, UUID pharmacyId, UUID reservationId) {
         var validated = repository.markAsPickedUp(ownerUserId, pharmacyId, reservationId);
         if (validated.isPresent()) {
-            return new PickupConfirmation(validated.get().id(), "RETIREE", validated.get().pickedUpAt());
+            return validated.get();
         }
 
         // Si l'update atomique n'a touché aucune ligne, vérifier si elle a déjà été retirée dans cette pharmacie
