@@ -384,3 +384,61 @@ Pharmacies approuvées dans le rayon (100 à 20 000 m), triées par distance en 
 
 Les pharmacies importées d'OpenStreetMap (ODbL) ont `source = 'OSM'`. Stocks et horaires sont simulés.
 Le proxy Angular transmet /api/** a la passerelle sur le port 8080 ; celle-ci route les demandes de disponibilite vers pharmacy-service (8082).
+
+## Notifications (US14 / EF24)
+
+Les utilisateurs sont prévenus **dans le site** (cloche 🔔 du menu) et **par e-mail** des événements qui les concernent.
+
+### Événements notifiés
+
+| Événement | Destinataire | Type | Lien ouvert |
+|---|---|---|---|
+| Nouvelle demande de disponibilité | pharmaciens des pharmacies contactées | `NOUVELLE_DEMANDE` | `/pharmacien/demandes` |
+| Réponse d'une pharmacie | patient | `REPONSE_PHARMACIE` | `/suivi-demande/{id}` |
+| Réservation confirmée | patient | `RESERVATION_CONFIRMEE` | `/suivi-demande/{id}` |
+| Nouvelle réservation | pharmacien | `NOUVELLE_RESERVATION` | `/pharmacien/demandes` |
+| Retrait validé au comptoir | patient | `RETRAIT_CONFIRME` | `/suivi-demande/{id}` |
+| Réservation expirée (1 h, RG03) | patient | `RESERVATION_EXPIREE` | `/suivi-demande/{id}` |
+
+Une pharmacie sans pharmacien inscrit (import OSM) est ignorée. Un pharmacien n'est prévenu qu'une fois par demande, même s'il possède plusieurs pharmacies contactées.
+
+### Confidentialité (ENF05, loi 09-08)
+
+- Les messages ne contiennent **jamais le nom des médicaments** : uniquement le nom de la pharmacie et le prix.
+- Les journaux ne contiennent aucune donnée personnelle : seulement l'identifiant technique de la notification.
+- pharmacy-service ne stocke pas les adresses e-mail : il les demande à auth-service au moment de l'envoi.
+
+### API (gateway : `/api/notifications/**`, utilisateur connecté)
+
+| Méthode | Route | Rôle | Réponse |
+|---|---|---|---|
+| `GET` | `/api/notifications/me` | patient ou pharmacien | `{ items: [...20 dernières], unread: n }` |
+| `POST` | `/api/notifications/{id}/read` | propriétaire de la notification | `204`, ou `404` si elle appartient à un autre utilisateur |
+| `POST` | `/api/notifications/read-all` | utilisateur connecté | `204` |
+
+### Envoi des e-mails : boîte d'envoi (pattern *outbox*)
+
+1. La notification est enregistrée **dans la même transaction** que l'événement (réponse, réservation…), avec `email_status = PENDING`.
+2. La tâche `EmailOutbox` s'exécute toutes les 30 s : elle verrouille un lot de 20 notifications (`FOR UPDATE SKIP LOCKED`), récupère l'adresse auprès d'auth-service, puis envoie l'e-mail.
+3. Statut final : `SENT`, `SKIPPED` (utilisateur inconnu ou désactivé), ou `FAILED` après 5 échecs. En cas d'échec, l'envoi est réessayé au passage suivant.
+
+Le métier ne dépend donc jamais du serveur e-mail : si celui-ci est en panne, les réponses et réservations continuent de fonctionner et les e-mails partent plus tard.
+
+### Configuration
+
+| Variable | Rôle | Valeur par défaut |
+|---|---|---|
+| `NOTIFICATIONS_EMAIL_ENABLED` | active l'envoi des e-mails | `false` (désactivé dans les tests) |
+| `MAIL_HOST` / `MAIL_PORT` | serveur SMTP | `localhost` / `1025` |
+| `MAIL_FROM` | expéditeur | `no-reply@dwadispo.local` |
+| `AUTH_SERVICE_URL` | adresse d'auth-service (appel interne) | `http://localhost:8081` |
+| `INTERNAL_API_TOKEN` | jeton partagé avec auth-service, **secret** | *(vide : e-mails refusés)* |
+| `FRONT_URL` | adresse du site, pour les liens des e-mails | `http://localhost:4200` |
+
+En local, **Mailpit** (service `mailpit` du `docker-compose.yaml`) reçoit tous les e-mails sans rien envoyer pour de vrai. Interface : **http://localhost:8025**.
+
+### Tests
+
+- `NotificationIntegrationTest` : chaque événement crée la bonne notification ; un utilisateur ne voit et ne marque que les siennes ; 401 sans jeton.
+- `EmailOutboxIntegrationTest` : envoi puis `SENT` ; jamais envoyé deux fois ; `SKIPPED` si l'utilisateur est inconnu ; réessai puis `FAILED` après 5 échecs.
+- `EmailComposerTest` : contenu de l'e-mail ; un lien externe n'est jamais repris.
