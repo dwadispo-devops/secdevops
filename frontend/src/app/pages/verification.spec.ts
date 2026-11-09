@@ -46,4 +46,21 @@ describe('VerificationPage (US08)', () => {
     ]);
     expect(page.resultats(1)[0]).toEqual({ id: '6118000160212', nom: 'AUGMENTIN 1 G, COMPRIME, 1 BOITE 12' });
   });
+
+  it('permet de corriger et confirmer la quantité avant estimation (US17)', async () => {
+    const service = TestBed.inject(OrdonnanceService);
+    service.charger([{ id: 1, texteLu: 'Produit', score: 1, quantite: null,
+      suggestions: [{ id: '6118000000001', nom: 'Produit, 1 BOITE' }] }]);
+    const fixture = TestBed.createComponent(VerificationPage);
+    fixture.detectChanges(); await fixture.whenStable();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('#quantite-1');
+    expect(input.value).toBe('');
+    input.value = '3'; input.dispatchEvent(new Event('input'));
+    fixture.detectChanges(); await fixture.whenStable();
+    expect(service.lignes()[0].quantite).toBe(3);
+    const checkbox: HTMLInputElement = fixture.nativeElement.querySelector('input[type=checkbox]');
+    checkbox.click(); fixture.detectChanges(); await fixture.whenStable();
+    expect(service.lignes()[0].quantiteConfirmee).toBe(true);
+    expect(fixture.nativeElement.querySelector('app-prescription-estimate button').disabled).toBe(false);
+  });
 });

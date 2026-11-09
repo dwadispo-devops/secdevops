@@ -1,5 +1,7 @@
 # Frontend
 
+US17 : correction des quantités et estimation indicative sur `/verification`. Voir le [guide de test patient et les commandes PowerShell](../docs/US17_ESTIMATION_ORDONNANCE.md).
+
 Le parcours patient de réservation avec QR code valable deux heures est décrit dans le [guide US12](../docs/US12_RESERVATION_QR.md), avec les commandes de test et la recette patient/pharmacien.
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.2.2.
