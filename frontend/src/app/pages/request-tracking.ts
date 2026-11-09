@@ -1,10 +1,11 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Observable, catchError, forkJoin, map, of, switchMap, timer } from 'rxjs';
 import { CartePharmaciesComponent, PointCarte } from '../components/carte-pharmacies';
+import { ReservationQrComponent } from '../components/reservation-qr';
 import { PharmacyService } from '../services/pharmacy.service';
 
 /** Format de GET /api/availability-requests/{id}/responses (ReviewDtos.Request). */
@@ -43,7 +44,7 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
 
 @Component({
   selector: 'app-request-tracking',
-  imports: [DatePipe, DecimalPipe, RouterLink, CartePharmaciesComponent],
+  imports: [DecimalPipe, RouterLink, CartePharmaciesComponent, ReservationQrComponent],
   template: `
     <main class="suivi">
       <h1>Suivi de ma demande</h1>
@@ -58,17 +59,18 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
         </p>
       }
 
-      @if (reservation(); as res) {
-        <section class="reservation" [attr.data-statut]="res.status" role="status">
-          @if (res.status === 'ACTIVE') {
+      @if (!erreur() && !erreurChargementReservation() && reservation(); as res) {
+        <section class="reservation" [attr.data-statut]="statutReservation()" role="status">
+          @if (reservationActive()) {
             <h2>✅ Réservation confirmée</h2>
             <p>Présentez ce code au comptoir de <strong>{{ res.pharmacyName }}</strong> :</p>
+            <app-reservation-qr [code]="res.code" />
             <p class="code" aria-label="Code de retrait">{{ res.code }}</p>
-            <p>Valable jusqu’à <strong>{{ res.expiresAt | date: 'HH:mm' }}</strong>
+            <p>Valable jusqu’à <strong>{{ expirationLibelle() }}</strong> (heure du Maroc) · validité de 2 heures
               @if (res.price !== null) { · {{ res.price | number: '1.2-2' }} DH, à régler en pharmacie }</p>
-          } @else if (res.status === 'EXPIREE') {
+          } @else if (statutReservation() === 'EXPIREE') {
             <h2>⌛ Réservation expirée</h2>
-            <p>Le code n’a pas été utilisé dans l’heure. Vous pouvez réserver à nouveau ci-dessous.</p>
+            <p>Le code n’a pas été utilisé dans les deux heures. Vous pouvez réserver à nouveau ci-dessous.</p>
           } @else if (res.status === 'RETIREE') {
             <h2>📦 Médicaments retirés</h2>
             <p>Merci d’avoir utilisé DwaDispo.</p>
@@ -76,6 +78,13 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
             <h2>Réservation annulée</h2>
           }
         </section>
+      }
+      @if (erreurChargementReservation()) {
+        <p role="alert">{{ erreurChargementReservation() }}
+          @if (nonConnecte()) {
+            <a routerLink="/connexion" [queryParams]="{ retour: '/suivi-demande/' + id }">Se connecter</a>
+          }
+        </p>
       }
       @if (erreurReservation()) { <p role="alert">{{ erreurReservation() }}</p> }
 
@@ -102,7 +111,7 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
                   @if (r.price !== null) { <p class="prix">{{ r.price | number: '1.2-2' }} DH</p> }
                   @if (r.comment) { <p class="commentaire">« {{ r.comment }} »</p> }
                   @if (r.status === 'AVAILABLE') {
-                    <button type="button" (click)="reserver(r)" [disabled]="reservationActive() || reservant()">
+                    <button type="button" (click)="reserver(r)" [disabled]="!reservationChargee() || !!erreur() || reservationActive() || reservant()">
                       {{ reservant() ? 'Réservation…' : 'Réserver ici' }}
                     </button>
                   }
@@ -170,9 +179,24 @@ export class RequestTrackingPage {
   readonly reservation = signal<Reservation | null>(null);
   readonly reservant = signal(false);
   readonly erreurReservation = signal('');
+  readonly erreurChargementReservation = signal('');
+  readonly reservationChargee = signal(false);
+  private readonly maintenant = signal(Date.now());
+  private reservationRevision = 0;
   private readonly coordonnees = signal<Record<string, { lat: number; lng: number }>>({});
 
-  readonly reservationActive = computed(() => this.reservation()?.status === 'ACTIVE');
+  readonly statutReservation = computed(() => {
+    const res = this.reservation();
+    if (res?.status === 'ACTIVE' && !(Date.parse(res.expiresAt) > this.maintenant())) return 'EXPIREE';
+    return res?.status ?? null;
+  });
+  readonly reservationActive = computed(() => this.statutReservation() === 'ACTIVE');
+  readonly expirationLibelle = computed(() => {
+    const date = this.reservation()?.expiresAt;
+    return date && Number.isFinite(Date.parse(date))
+      ? new Intl.DateTimeFormat('fr-FR', { timeZone: 'Africa/Casablanca', dateStyle: 'short', timeStyle: 'medium' }).format(new Date(date))
+      : '';
+  });
   readonly centre = computed(() =>
     this.suivie && this.suivie.id === this.id ? { lat: this.suivie.latitude, lng: this.suivie.longitude } : null);
   readonly triees = computed(() => trierReponses(this.reponses() ?? []));
@@ -192,6 +216,7 @@ export class RequestTrackingPage {
       this.erreur.set('Aucune demande à suivre. Envoyez d’abord une demande de disponibilité.');
       return;
     }
+    timer(0, 1000).pipe(takeUntilDestroyed()).subscribe(() => this.maintenant.set(Date.now()));
     timer(0, RAFRAICHISSEMENT_MS)
       .pipe(switchMap(() => forkJoin([this.charger(), this.chargerReservation()])), takeUntilDestroyed())
       .subscribe();
@@ -215,15 +240,21 @@ export class RequestTrackingPage {
     const headers = this.entetes();
     this.nonConnecte.set(!headers);
     if (!headers) {
+      this.reponses.set(null);
+      this.reservation.set(null);
       this.erreur.set('Connectez-vous avec le compte qui a envoyé la demande.');
       return of(undefined);
     }
     return this.http.get<ReponsePharmacie[]>(`/api/availability-requests/${encodeURIComponent(this.id!)}/responses`, { headers }).pipe(
       map((liste): void => { this.erreur.set(''); this.reponses.set(liste ?? []); }),
       catchError(e => {
+        this.reponses.set(null);
+        if ([401, 403, 404].includes(e.status)) this.reservation.set(null);
+        this.nonConnecte.set(e.status === 401);
         this.erreur.set(e.status === 404 ? 'Demande introuvable pour ce compte.'
           : e.status === 401 ? 'Session expirée. Reconnectez-vous.'
-          : 'Impossible de charger les réponses pour le moment.');
+          : e.status === 403 ? 'Accès réservé au patient propriétaire de la demande.'
+          : 'Impossible de charger les réponses pour le moment. Nouvelle tentative automatique dans 10 secondes.');
         return of(undefined);
       }),
     );
@@ -232,22 +263,52 @@ export class RequestTrackingPage {
   /** US12 : réservation en cours pour cette demande (404 = aucune). */
   chargerReservation(): Observable<void> {
     const headers = this.entetes();
-    if (!headers) return of(undefined);
+    const revision = this.reservationRevision;
+    if (!headers) {
+      this.reservation.set(null);
+      this.reservationChargee.set(false);
+      this.erreurChargementReservation.set('Connectez-vous pour consulter votre réservation.');
+      return of(undefined);
+    }
     return this.http.get<Reservation>(`/api/availability-requests/${encodeURIComponent(this.id!)}/reservation`, { headers }).pipe(
-      map((res): void => { this.reservation.set(res); }),
-      catchError(() => of(undefined)),
+      map((res): void => {
+        if (revision !== this.reservationRevision) return;
+        this.maintenant.set(Date.now());
+        this.reservation.set(res);
+        this.reservationChargee.set(true);
+        this.erreurChargementReservation.set('');
+      }),
+      catchError(e => {
+        if (revision !== this.reservationRevision) return of(undefined);
+        this.reservationChargee.set(e.status === 404);
+        if ([401, 403, 404].includes(e.status)) this.reservation.set(null);
+        this.erreurChargementReservation.set(e.status === 404 ? ''
+          : e.status === 401 ? 'Session expirée. Reconnectez-vous pour consulter votre réservation.'
+          : e.status === 403 ? 'Accès à la réservation réservé au patient autorisé.'
+          : 'Impossible de vérifier votre réservation. Nouvelle tentative automatique dans 10 secondes.');
+        if (e.status === 401) this.nonConnecte.set(true);
+        return of(undefined);
+      }),
     );
   }
 
   /** US12 / EF21 : réserve chez une pharmacie qui a répondu « disponible » et obtient un code de retrait. */
   reserver(r: ReponsePharmacie): void {
     const headers = this.entetes();
-    if (!headers || this.reservant() || this.reservationActive()) return;
+    if (!headers || !this.reservationChargee() || this.erreur() || this.reservant() || this.reservationActive()) return;
     this.reservant.set(true);
     this.erreurReservation.set('');
     this.http.post<Reservation>(`/api/availability-requests/${encodeURIComponent(this.id!)}/reservations`,
       { pharmacyId: r.pharmacyId }, { headers }).subscribe({
-      next: res => { this.reservant.set(false); this.reservation.set(res); },
+      next: res => {
+        // Une consultation commencée avant la création ne doit pas effacer son résultat.
+        this.reservationRevision++;
+        this.maintenant.set(Date.now());
+        this.reservant.set(false);
+        this.reservation.set(res);
+        this.reservationChargee.set(true);
+        this.erreurChargementReservation.set('');
+      },
       error: e => {
         this.reservant.set(false);
         this.erreurReservation.set(e.error?.message ?? 'Réservation impossible pour le moment. Réessayez.');

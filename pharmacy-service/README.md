@@ -398,7 +398,9 @@ Les utilisateurs sont prévenus **dans le site** (cloche 🔔 du menu) et **par 
 | Réservation confirmée | patient | `RESERVATION_CONFIRMEE` | `/suivi-demande/{id}` |
 | Nouvelle réservation | pharmacien | `NOUVELLE_RESERVATION` | `/pharmacien/demandes` |
 | Retrait validé au comptoir | patient | `RETRAIT_CONFIRME` | `/suivi-demande/{id}` |
-| Réservation expirée (1 h, RG03) | patient | `RESERVATION_EXPIREE` | `/suivi-demande/{id}` |
+| Réservation expirée (2 h, US12) | patient | `RESERVATION_EXPIREE` | `/suivi-demande/{id}` |
+
+La réservation et le QR patient US12, les contrôles de durée et la recette navigateur sont détaillés dans le [guide US12](../docs/US12_RESERVATION_QR.md).
 
 Une pharmacie sans pharmacien inscrit (import OSM) est ignorée. Un pharmacien n'est prévenu qu'une fois par demande, même s'il possède plusieurs pharmacies contactées.
 

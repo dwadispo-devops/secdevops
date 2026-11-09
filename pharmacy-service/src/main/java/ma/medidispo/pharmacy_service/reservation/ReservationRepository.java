@@ -43,7 +43,7 @@ public class ReservationRepository {
             )
             INSERT INTO notifications (user_id, type, title, message, link)
             SELECT patient_id, 'RESERVATION_EXPIREE', 'Réservation expirée',
-                   'Votre code de retrait n''a pas été utilisé dans l''heure. Vous pouvez réserver à nouveau.',
+                   'Votre code de retrait n''a pas été utilisé dans les deux heures. Vous pouvez réserver à nouveau.',
                    '/suivi-demande/' || request_id
             FROM expirees
             """);

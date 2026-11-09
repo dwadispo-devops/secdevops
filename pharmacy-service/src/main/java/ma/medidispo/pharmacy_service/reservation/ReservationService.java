@@ -14,8 +14,8 @@ import static ma.medidispo.pharmacy_service.reservation.ReservationDtos.*;
 
 @Service
 public class ReservationService {
-    /** RG03 : le code de retrait est valable 1 h. */
-    static final Duration VALIDITE = Duration.ofHours(1);
+    /** RG03 : le code de retrait est valable 2 h. */
+    static final Duration VALIDITE = Duration.ofHours(2);
     /** RG04 : au plus 3 réservations actives par patient. */
     static final int MAX_ACTIVES = 3;
 
@@ -116,7 +116,7 @@ public class ReservationService {
         return code == null ? "" : code.trim().toUpperCase();
     }
 
-    /** RG03 : sans retrait dans l'heure, la réservation passe à EXPIREE. */
+    /** RG03 : sans retrait dans les deux heures, la réservation passe à EXPIREE. */
     @Scheduled(fixedDelayString = "${reservation.expiration.delai-ms:60000}")
     public void expirer() {
         repository.expireDue();
