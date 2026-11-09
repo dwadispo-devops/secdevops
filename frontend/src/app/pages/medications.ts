@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
+import { GeneriquesComponent } from '../components/generiques';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Observable, Subject, catchError, debounceTime, distinctUntilChanged, map, of, switchMap } from 'rxjs';
@@ -14,7 +15,7 @@ export interface Medication {
 export const MIN_CHARS = 2;
 
 @Component({
-  selector: 'app-medications', imports: [DecimalPipe],
+  selector: 'app-medications', imports: [DecimalPipe, GeneriquesComponent],
   template: `
     <main>
       <h1>Rechercher un médicament</h1>
@@ -39,6 +40,8 @@ export const MIN_CHARS = 2;
               @if (m.ppv !== null) { <span>{{ m.ppv | number:'1.2-2' }} MAD</span> }
               @if (m.tauxRemboursement !== null) { <span>Remboursé à {{ m.tauxRemboursement }} %</span> }
             </div>
+            <!-- US16 : génériques moins chers -->
+            <app-generiques [code]="m.code" />
           </li>
         }
       </ul>
