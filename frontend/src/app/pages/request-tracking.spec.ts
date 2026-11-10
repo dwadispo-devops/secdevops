@@ -4,6 +4,18 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { CLE_SUIVI, ReponsePharmacie, Reservation, RequestTrackingPage, trierReponses } from './request-tracking';
 
+
+// Heure du Maroc calculée comme dans la page (Intl + Africa/Casablanca).
+// Ne pas écrire l'heure en dur : le Maroc est revenu au GMT le 20/09/2026,
+// le résultat dépend des données de fuseaux (tzdata) de la machine.
+function heureMaroc(iso: string): string {
+  return new Intl.DateTimeFormat('fr-FR', {
+    timeZone: 'Africa/Casablanca',
+    dateStyle: 'short',
+    timeStyle: 'medium',
+  }).format(new Date(iso));
+}
+
 const ID = '83c4a4d2-ac2c-48df-9034-e49a582b1767';
 function reponse(nom: string, status: string, price: number | null): ReponsePharmacie {
   return { requestId: ID, pharmacyId: nom, pharmacyName: nom, status, createdAt: '', prescriptionId: null, price, comment: null, respondedAt: null };
@@ -150,7 +162,7 @@ describe('US12 : rendu du suivi et expiration', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-reservation-qr svg')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.code').textContent).toContain('K7P2QX');
-    expect(fixture.nativeElement.textContent).toContain('09/11/2026 13:00:00');
+    expect(fixture.nativeElement.textContent).toContain(heureMaroc('2026-11-09T12:00:00Z'));
     expect(fixture.nativeElement.textContent).toContain('heure du Maroc');
     expect(button.disabled).toBe(true);
   });
