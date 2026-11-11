@@ -46,6 +46,12 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/pharmacies').then((m) => m.PharmaciesPage),
   },
   {
+    // US15 : pharmacies de garde du jour
+    path: 'garde',
+    title: 'Pharmacies de garde – DwaDispo',
+    loadComponent: () => import('./pages/pharmacies-garde').then((m) => m.PharmaciesGardePage),
+  },
+  {
     path: 'connexion',
     title: 'Connexion – DwaDispo',
     loadComponent: () => import('./pages/login').then((m) => m.LoginPage),

@@ -65,6 +65,12 @@ public class SecurityConfig {
                                 "/api/pharmacies/nearby"
                         ).permitAll()
 
+                        // US15 : pharmacies de garde accessibles publiquement
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/pharmacies/garde"
+                        ).permitAll()
+
                         // Inscription d'une pharmacie réservée au pharmacien
                         .requestMatchers(
                                 HttpMethod.POST,

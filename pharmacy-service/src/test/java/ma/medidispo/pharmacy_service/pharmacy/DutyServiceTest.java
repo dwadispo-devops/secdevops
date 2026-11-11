@@ -32,9 +32,12 @@ class DutyServiceTest {
     void sortedByDistanceWhenLocated() {
         Clock clock = Clock.fixed(Instant.parse("2026-11-11T10:00:00Z"), DutyService.MOROCCO);
         DutyRepository repo = mock(DutyRepository.class);
-        when(repo.findOnDuty(LocalDate.of(2026, 11, 11))).thenReturn(List.of(
+
+        // Les vues sont créées AVANT le when(repo...) : pas de stubbing imbriqué
+        List<DutyRepository.DutyView> views = List.of(
                 view("Loin", 31.70, -8.00),
-                view("Proche", 31.6260, -7.9890)));
+                view("Proche", 31.6260, -7.9890));
+        when(repo.findOnDuty(LocalDate.of(2026, 11, 11))).thenReturn(views);
 
         DutyResponse response = new DutyService(repo, clock).onDutyToday(31.6258, -7.9891);
 
