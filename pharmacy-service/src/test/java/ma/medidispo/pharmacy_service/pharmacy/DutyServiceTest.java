@@ -17,15 +17,19 @@ class DutyServiceTest {
 
     @Test
     void todayIsComputedInMoroccoTime() {
-        // 23h30 UTC le 10 = 00h30 le 11 au Maroc (UTC+1)
-        Clock clock = Clock.fixed(Instant.parse("2026-11-10T23:30:00Z"), DutyService.MOROCCO);
+        // Près de minuit UTC : la date dépend du décalage en vigueur au Maroc.
+        // On la calcule avec le même fuseau pour ne pas dépendre de la version des règles horaires.
+        Instant now = Instant.parse("2026-11-13T23:30:00Z");
+        Clock clock = Clock.fixed(now, DutyService.MOROCCO);
+        LocalDate expected = LocalDate.ofInstant(now, DutyService.MOROCCO);
+
         DutyRepository repo = mock(DutyRepository.class);
-        when(repo.findOnDuty(LocalDate.of(2026, 11, 11))).thenReturn(List.of());
+        when(repo.findOnDuty(expected)).thenReturn(List.of());
 
         DutyResponse response = new DutyService(repo, clock).onDutyToday(null, null);
 
-        verify(repo).findOnDuty(LocalDate.of(2026, 11, 11));
-        assertEquals("2026-11-11", response.date());
+        verify(repo).findOnDuty(expected);
+        assertEquals(expected.toString(), response.date());
     }
 
     @Test
@@ -33,7 +37,6 @@ class DutyServiceTest {
         Clock clock = Clock.fixed(Instant.parse("2026-11-11T10:00:00Z"), DutyService.MOROCCO);
         DutyRepository repo = mock(DutyRepository.class);
 
-        // Les vues sont créées AVANT le when(repo...) : pas de stubbing imbriqué
         List<DutyRepository.DutyView> views = List.of(
                 view("Loin", 31.70, -8.00),
                 view("Proche", 31.6260, -7.9890));
