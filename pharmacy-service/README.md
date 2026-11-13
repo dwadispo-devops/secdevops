@@ -333,7 +333,7 @@ data/osm/                              données locales, non versionnées
 ## 9. Limites connues et pistes d'amélioration
 
 - Les données OpenStreetMap n'ont souvent ni adresse, ni téléphone, ni horaires.
-- Pas d'information « pharmacie de garde » ni de disponibilité en temps réel.
+- Pas de disponibilité en temps réel. Les gardes sont lues depuis `pharmacy_duties` (voir « Pharmacies de garde »); leur saisie n'est pas encore gérée.
 - La précision de la position dépend de l'appareil ; envisager un clic sur la carte ou une recherche d'adresse comme alternative.
 - Cercle de précision autour du point bleu et choix du rayon (1 km, 2 km, 5 km) côté interface.
 - En production : servir le site en HTTPS et rediriger `/api` vers le service par le serveur web (le proxy Angular ne sert qu'en développement).
@@ -444,3 +444,14 @@ En local, **Mailpit** (service `mailpit` du `docker-compose.yaml`) reçoit tous 
 - `NotificationIntegrationTest` : chaque événement crée la bonne notification ; un utilisateur ne voit et ne marque que les siennes ; 401 sans jeton.
 - `EmailOutboxIntegrationTest` : envoi puis `SENT` ; jamais envoyé deux fois ; `SKIPPED` si l'utilisateur est inconnu ; réessai puis `FAILED` après 5 échecs.
 - `EmailComposerTest` : contenu de l'e-mail ; un lien externe n'est jamais repris.
+
+## Pharmacies de garde (US15)
+
+`GET /api/pharmacies/garde` (public) renvoie les pharmacies de garde du jour.
+
+- Paramètres optionnels `lat` et `lng`, à fournir ensemble (sinon 400). Avec la position, les résultats sont triés par distance (`distanceM`), sinon par nom.
+- « Aujourd'hui » est calculé côté serveur à l'heure du Maroc (`Africa/Casablanca`).
+- Les périodes de garde sont stockées dans `pharmacy_duties` (migration `V10__pharmacy_duties.sql`) : une ligne par pharmacie avec `starts_on` et `ends_on`, bornes incluses.
+- Seules les pharmacies visibles dans `/nearby` sont renvoyées (`APPROVED`, ou `OSM` + `UNVERIFIED`).
+- Données de démonstration (hors Flyway) : `scripts/demo-pharmacies.sql` puis `scripts/demo-gardes.sql`.
+
