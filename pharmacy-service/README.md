@@ -455,3 +455,36 @@ En local, **Mailpit** (service `mailpit` du `docker-compose.yaml`) reçoit tous 
 - Seules les pharmacies visibles dans `/nearby` sont renvoyées (`APPROVED`, ou `OSM` + `UNVERIFIED`).
 - Données de démonstration (hors Flyway) : `scripts/demo-pharmacies.sql` puis `scripts/demo-gardes.sql`.
 
+
+## Notifications asynchrones avec Kafka (US14, évolution)
+
+Pour supporter de nombreux utilisateurs, les notifications ne sont plus créées pendant la requête de l'utilisateur.
+
+**Fonctionnement**
+1. Une action métier (nouvelle demande, réponse, réservation, retrait) publie un `NotificationEvent`.
+2. Après la transaction (AFTER_COMMIT), l'événement est envoyé dans le topic Kafka `dwadispo.notifications` (3 partitions).
+   La clé est l'identifiant de la demande ou de la réservation : les événements d'une même demande restent dans l'ordre.
+3. Trois consommateurs (groupe `notifications`) lisent les partitions en parallèle et créent les notifications.
+   L'e-mail est ensuite envoyé par l'outbox existante.
+
+**Garanties**
+- Idempotence : un événement déjà traité est ignoré (table `notification_events_traites`, migration V11).
+- Secours : si Kafka est indisponible, l'événement est traité directement ; aucune notification n'est perdue.
+- ENF05 : les événements ne contiennent que des identifiants, jamais de nom de médicament.
+
+**Configuration**
+
+| Variable | Rôle | Valeur par défaut |
+|---|---|---|
+| `NOTIFICATIONS_KAFKA_ENABLED` | active Kafka (sinon traitement direct, utilisé par les tests) | `false` |
+| `KAFKA_BOOTSTRAP_SERVERS` | adresse de Kafka | `localhost:9092` |
+
+**Observer Kafka**
+```bash
+# Interface web (outil de développement) : http://127.0.0.1:8090
+docker compose --profile outils up -d kafka-ui
+
+# État des consommateurs (le LAG doit être à 0)
+docker compose exec -T kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 --describe --group notifications
+```
