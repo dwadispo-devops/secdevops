@@ -404,3 +404,58 @@
     min-height: 350px;
   }
 }
+
+.pharmacy-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: -8px 0 22px;
+
+  button {
+    padding: 11px 18px;
+    border: 1px solid #dce9e5;
+    border-radius: 10px;
+    background: #fff;
+    color: #58716b;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:hover {
+      border-color: #079779;
+    }
+
+    &.active {
+      border-color: #087f6b;
+      background: #087f6b;
+      color: #fff;
+    }
+  }
+}
+
+.duty-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #fff1dc;
+  color: #b86a0c;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.pharmacy-item.on-duty .pharmacy-icon {
+  background: #fff1dc;
+  color: #c87513;
+}
+
+.legend-duty {
+  width: 10px;
+  height: 10px;
+  margin-left: 12px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #e58a24;
+  box-shadow: 0 0 0 1px #e58a24;
+}

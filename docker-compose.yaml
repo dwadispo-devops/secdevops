@@ -111,6 +111,12 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_PROFILES_ACTIVE: dev
+      OSM_IMPORT_ENABLED: "true"
+      OSM_IMPORT_FILE: /app/data/pharmacies-marrakech.geojson
+      OSM_IMPORT_ONLY_IF_EMPTY: "true"
+    volumes:
+      - ./data/pharmacies-marrakech.geojson:/app/data/pharmacies-marrakech.geojson:ro
     ports:
       - "8082:8082"
     restart: unless-stopped

@@ -158,3 +158,10 @@ body {
 
   .content { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
 }
+
+/* Accueil : espace régulier entre les boutons d'action */
+.hero .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}

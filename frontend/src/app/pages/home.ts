@@ -11,9 +11,12 @@ import { RouterLink } from '@angular/router';
         Photographiez votre ordonnance, vérifiez la liste lue par l'IA, puis réservez
         en pharmacie et retirez avec un code.
       </p>
-      <a class="btn" routerLink="/scan">Scanner mon ordonnance</a>
-      <a class="btn" routerLink="/pharmacien/demandes">Espace pharmacien : demandes reçues</a>
+      <div class="actions">
+        <a class="btn" routerLink="/scan">Scanner mon ordonnance</a>
+        <a class="btn" routerLink="/garde">Pharmacies de garde</a>
+        <a class="btn" routerLink="/pharmacien/demandes">Espace pharmacien : demandes reçues</a>
         <a class="btn" routerLink="/pharmacien/inscription">Vous êtes pharmacien ? Inscrire ma pharmacie</a>
+      </div>
     </section>
 
     <section class="cards">
