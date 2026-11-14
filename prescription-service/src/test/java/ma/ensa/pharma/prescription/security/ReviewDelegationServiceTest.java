@@ -19,6 +19,12 @@ class ReviewDelegationServiceTest {
     @Test void acceptsOnlyScopedShortLivedDelegation() {
         assertThat(service.patient(token(prescription,"prescription-review",30000,true),prescription)).isEqualTo(patient);
     }
+    @Test void rejectsPurgeAudience() {
+        String purgeToken = token(prescription, "prescription-purge", 30000, true);
+        assertThatThrownBy(() -> service.patient(purgeToken, prescription))
+                .isInstanceOf(PrescriptionException.class)
+                .satisfies(ex -> assertThat(((PrescriptionException) ex).getStatus().value()).isEqualTo(401));
+    }
     @Test void rejectsMissingExpiredForeignAndOrdinaryUserTokens() {
         for (String auth:Arrays.asList(null,"Bearer invalid",token(prescription,"prescription-review",-1000,true),
                 token(UUID.randomUUID(),"prescription-review",30000,true),token(prescription,"other",30000,true),

@@ -2,10 +2,12 @@ import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Etat, LigneOrdonnance, OrdonnanceService, Produit, etatDe } from '../services/ordonnance';
 import { CatalogueService } from '../services/catalogue.service';
+import { FormsModule } from '@angular/forms';
+import { PrescriptionEstimateComponent } from '../components/prescription-estimate';
 
 @Component({
   selector: 'app-verification',
-  imports: [RouterLink],
+  imports: [RouterLink, FormsModule, PrescriptionEstimateComponent],
   styles: [
     `
       .intro { max-width: 65ch; }
@@ -110,6 +112,15 @@ import { CatalogueService } from '../services/catalogue.service';
                 }
               </p>
 
+              <label [attr.for]="'quantite-' + ligne.id">Quantité de conditionnements (boîtes, flacons…)</label>
+              <input type="number" [id]="'quantite-' + ligne.id" min="1" max="10000" step="1"
+                     [ngModel]="ligne.quantite ?? null" (ngModelChange)="service.quantifier(ligne.id, $event)" />
+              <label>
+                <input type="checkbox" [ngModel]="ligne.quantiteConfirmee ?? false"
+                       (ngModelChange)="service.confirmerQuantite(ligne.id, $event)" />
+                Je confirme la quantité et sa correspondance avec le conditionnement du médicament retenu.
+              </label>
+
               @if (!ligne.choix || enCorrection() === ligne.id) {
                 <div class="correction">
                   @if (ligne.suggestions.length > 0) {
@@ -163,6 +174,8 @@ import { CatalogueService } from '../services/catalogue.service';
           </li>
         }
       </ul>
+
+      @if (service.lignes().length > 0) { <app-prescription-estimate [lines]="service.lignes()" /> }
 
       <div class="pied">
         <a class="btn secondaire" routerLink="/scan">Reprendre la photo</a>

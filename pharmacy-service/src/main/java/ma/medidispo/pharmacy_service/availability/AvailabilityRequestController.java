@@ -18,13 +18,16 @@ public class AvailabilityRequestController {
     private final AvailabilityJwtService jwtService;
     private final AvailabilityPharmacySearchService pharmacySearchService;
     private final AvailabilityRequestPharmacyRepository pharmacyAssociationRepository;
+    private final ma.medidispo.pharmacy_service.notification.NotificationService notifications;
 
     public AvailabilityRequestController(
+            ma.medidispo.pharmacy_service.notification.NotificationService notifications,
             AvailabilityRequestRepository repository,
             AvailabilityRequestItemRepository itemRepository,
             AvailabilityJwtService jwtService,
             AvailabilityPharmacySearchService pharmacySearchService,
             AvailabilityRequestPharmacyRepository pharmacyAssociationRepository) {
+        this.notifications = notifications;
         this.repository = repository;
         this.itemRepository = itemRepository;
         this.jwtService = jwtService;
@@ -73,6 +76,10 @@ public class AvailabilityRequestController {
             pharmacyAssociationRepository.save(
                     new AvailabilityRequestPharmacy(request.getId(), pharmacy.getId()));
         }
+
+        // US14 : chaque pharmacien concerné est prévenu de la nouvelle demande
+        notifications.nouvelleDemande(request.getId(), nearbyPharmacies.stream()
+                .map(pharmacy -> pharmacy.getId()).toList());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(request);
     }

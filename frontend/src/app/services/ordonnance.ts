@@ -14,6 +14,8 @@ export interface LigneOrdonnance {
   supprimee: boolean;
   /** Nombre de boîtes prescrites, si l'IA l'a lu. */
   quantite?: number | null;
+  /** Confirmation explicite du nombre de conditionnements pour l'estimation US17. */
+  quantiteConfirmee?: boolean;
 }
 
 export type Niveau = 'vert' | 'orange' | 'rouge';
@@ -83,12 +85,21 @@ export class OrdonnanceService {
         // une ligne verte est confirmée d'office, le patient peut encore la corriger
         choix: niveauDe(l.score) === 'vert' ? (l.suggestions[0] ?? null) : null,
         supprimee: false,
+        quantiteConfirmee: false,
       })),
     );
   }
 
   choisir(id: number, produit: Produit): void {
-    this.modifier(id, { choix: produit });
+    this.modifier(id, { choix: produit, quantiteConfirmee: false });
+  }
+
+  quantifier(id: number, quantite: number | null): void {
+    this.modifier(id, { quantite, quantiteConfirmee: false });
+  }
+
+  confirmerQuantite(id: number, confirmee: boolean): void {
+    this.modifier(id, { quantiteConfirmee: confirmee });
   }
 
   supprimer(id: number): void {

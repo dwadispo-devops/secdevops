@@ -2,6 +2,7 @@ package ma.ensa.pharma.prescription.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ma.ensa.pharma.prescription.api.dto.ReadPrescriptionResponse;
+import ma.ensa.pharma.prescription.api.dto.PrescriptionHistoryResponse;
 import ma.ensa.pharma.prescription.exception.PrescriptionException;
 import ma.ensa.pharma.prescription.storage.*;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,13 @@ public class StoredReadingService {
     private Prescription owned(UUID patient, UUID id) {
         return repository.findById(id).filter(p -> p.belongsTo(patient)).orElseThrow(PrescriptionException::notFound);
     }
+    @Transactional(readOnly=true)
+    public List<PrescriptionHistoryResponse> history(UUID patient) {
+        return repository.findAllByPatientIdOrderByCreatedAtDesc(patient).stream()
+                .map(PrescriptionHistoryResponse::from)
+                .toList();
+    }
+
     @Transactional
     public ReadPrescriptionResponse read(UUID patient, UUID id, boolean consent) {
         if (!consent) throw PrescriptionException.consentRequired();

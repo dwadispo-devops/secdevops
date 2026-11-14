@@ -1,5 +1,7 @@
 # medication-service
 
+US17 ajoute une consultation financière par codes exacts : [contrats, tests et guide de recette](../docs/US17_ESTIMATION_ORDONNANCE.md).
+
 Microservice de gestion du **référentiel des médicaments CNOPS** (data.gov.ma).
 
 ## Prérequis

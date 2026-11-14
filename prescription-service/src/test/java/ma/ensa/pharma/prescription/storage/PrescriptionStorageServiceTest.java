@@ -106,4 +106,28 @@ class PrescriptionStorageServiceTest {
         // Après suppression, l'image n'est plus accessible
         assertThatThrownBy(() -> service.loadImage(patient, p.getId())).isInstanceOf(PrescriptionException.class);
     }
+
+    @Test
+    void deleteImage_supprimeUniquementImageEtReinitialiseLecture_ordonnanceConservee() {
+        Prescription p = new Prescription(patient, DetectedFileType.PNG, PNG.length);
+        p.storeReading(new byte[]{1, 2}, new byte[]{3, 4});
+        when(prescriptions.findById(p.getId())).thenReturn(Optional.of(p));
+
+        service.deleteImage(patient, p.getId());
+
+        // 1. L'image chiffrée est supprimée
+        verify(images).deleteById(p.getId());
+
+        // 2. L'ordonnance en base n'est PAS supprimée (save appelé, jamais delete)
+        verify(prescriptions, never()).delete(any());
+        verify(prescriptions, never()).deleteById(any());
+        verify(prescriptions).save(p);
+
+        // 3. imageDeletedAt est renseigné (hasImage devient false)
+        assertThat(p.hasImage()).isFalse();
+
+        // 4. Les colonnes de lecture brute sont remises à null (Option B)
+        assertThat(p.getReadingIv()).isNull();
+        assertThat(p.getReadingData()).isNull();
+    }
 }

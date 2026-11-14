@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { App } from './app';
 
 describe('App', () => {
@@ -7,7 +9,7 @@ describe('App', () => {
     sessionStorage.clear();
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     })
       .compileComponents();
   });
@@ -38,7 +40,8 @@ describe('App', () => {
     sessionStorage.setItem('access_token', 'jwt');
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
-    const button = (fixture.nativeElement as HTMLElement).querySelector('nav button');
-    expect(button?.textContent).toContain('Déconnexion');
+    const boutons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('nav button'));
+    expect(boutons.some(b => b.textContent?.includes('Déconnexion'))).toBe(true);
+    expect(boutons.some(b => b.textContent?.includes('🔔'))).toBe(true); // US14 : cloche visible une fois connecté
   });
 });

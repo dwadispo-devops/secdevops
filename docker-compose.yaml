@@ -58,6 +58,7 @@ services:
         condition: service_started
     environment:
       DB_URL: jdbc:postgresql://auth-db:5432/authdb
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?definir INTERNAL_API_TOKEN dans .env}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
@@ -98,12 +99,26 @@ services:
       eureka-server:
         condition: service_started
     environment:
+      NOTIFICATIONS_KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       DB_URL: jdbc:postgresql://pharmacy-db:5432/pharmacydb
       PRESCRIPTION_SERVICE_URL: http://prescription-service:8085
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?definir INTERNAL_API_TOKEN dans .env}
+      AUTH_SERVICE_URL: http://auth-service:8081
+      NOTIFICATIONS_EMAIL_ENABLED: "true"
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      FRONT_URL: http://localhost:4200
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET dans .env}
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_PROFILES_ACTIVE: dev
+      OSM_IMPORT_ENABLED: "true"
+      OSM_IMPORT_FILE: /app/data/pharmacies-marrakech.geojson
+      OSM_IMPORT_ONLY_IF_EMPTY: "true"
+    volumes:
+      - ./data/pharmacies-marrakech.geojson:/app/data/pharmacies-marrakech.geojson:ro
     ports:
       - "8082:8082"
     restart: unless-stopped
@@ -191,6 +206,49 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
     ports:
       - "8083:8083"
+    restart: unless-stopped
+
+  # =========================
+  # MAILPIT (US14) : faux serveur e-mail, interface sur http://localhost:8025
+  # =========================
+  # Kafka (mode KRaft, sans ZooKeeper) : bus d'événements pour les notifications (US14)
+  kafka:
+    image: apache/kafka:3.9.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # Interface web de Kafka (outil de développement) : démarrage avec --profile outils
+  kafka-ui:
+    image: ghcr.io/kafbat/kafka-ui:latest
+    profiles: ["outils"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: dwadispo
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports:
+      - "127.0.0.1:8090:8080"
+    depends_on:
+      - kafka
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "127.0.0.1:8025:8025"
     restart: unless-stopped
 
 volumes:

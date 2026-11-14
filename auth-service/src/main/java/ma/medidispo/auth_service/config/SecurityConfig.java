@@ -29,6 +29,8 @@ public class SecurityConfig {
                         "/api/auth/login",
                         "/api/auth/refresh",
                         "/api/auth/logout").permitAll()
+                // US14 : contact pour les e-mails ; le jeton interne est vérifié dans le contrôleur
+                .requestMatchers(HttpMethod.GET, "/internal/users/*/contact").permitAll()
                 .anyRequest().authenticated()
             );
         return http.build();

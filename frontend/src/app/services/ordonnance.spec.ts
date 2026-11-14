@@ -45,4 +45,18 @@ describe('OrdonnanceService', () => {
   it('ignore les recherches trop courtes', () => {
     expect(service.rechercher('a')).toEqual([]);
   });
+
+  it('conserve une quantité absente et réinitialise sa confirmation après correction (US17)', () => {
+    service.charger([{ id: 1, texteLu: 'Produit', score: 1, suggestions: [{ id: '6118000000001', nom: 'Produit' }], quantite: null }]);
+    expect(service.lignes()[0].quantite).toBeNull();
+    service.quantifier(1, 3);
+    service.confirmerQuantite(1, true);
+    expect(service.lignes()[0].quantiteConfirmee).toBe(true);
+    service.quantifier(1, 4);
+    expect(service.lignes()[0].quantiteConfirmee).toBe(false);
+    service.confirmerQuantite(1, true);
+    service.choisir(1, { id: '6118000000002', nom: 'Autre conditionnement' });
+    expect(service.lignes()[0].quantiteConfirmee).toBe(false);
+    expect(service.lignes()[0].quantite).toBe(4);
+  });
 });

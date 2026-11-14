@@ -19,6 +19,17 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/pharmacist-requests').then(m => m.PharmacistRequestsPage),
   },
   {
+    // US15 (amélioration) : le pharmacien déclare ses gardes
+    path: 'pharmacien/gardes',
+    title: 'Mes gardes – DwaDispo',
+    loadComponent: () => import('./pages/pharmacist-duties').then((m) => m.PharmacistDutiesPage),
+  },
+  {
+    path: 'mes-ordonnances',
+    title: 'Mes ordonnances – DwaDispo',
+    loadComponent: () => import('./pages/prescription-history').then(m => m.PrescriptionHistoryPage),
+  },
+  {
     path: 'demande-disponibilite',
     title: 'Demande de disponibilité - MédiDispo',
     loadComponent: () => import('./pages/availability-request').then((m) => m.AvailabilityRequestPage),
@@ -44,6 +55,12 @@ export const routes: Routes = [
     path: 'pharmacies',
     title: 'Pharmacies – DwaDispo',
     loadComponent: () => import('./pages/pharmacies').then((m) => m.PharmaciesPage),
+  },
+  {
+    // US15 : pharmacies de garde du jour
+    path: 'garde',
+    title: 'Pharmacies de garde – DwaDispo',
+    loadComponent: () => import('./pages/pharmacies-garde').then((m) => m.PharmaciesGardePage),
   },
   {
     path: 'connexion',

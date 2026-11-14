@@ -333,7 +333,7 @@ data/osm/                              données locales, non versionnées
 ## 9. Limites connues et pistes d'amélioration
 
 - Les données OpenStreetMap n'ont souvent ni adresse, ni téléphone, ni horaires.
-- Pas d'information « pharmacie de garde » ni de disponibilité en temps réel.
+- Pas de disponibilité en temps réel. Les gardes sont lues depuis `pharmacy_duties` (voir « Pharmacies de garde »); leur saisie n'est pas encore gérée.
 - La précision de la position dépend de l'appareil ; envisager un clic sur la carte ou une recherche d'adresse comme alternative.
 - Cercle de précision autour du point bleu et choix du rayon (1 km, 2 km, 5 km) côté interface.
 - En production : servir le site en HTTPS et rediriger `/api` vers le service par le serveur web (le proxy Angular ne sert qu'en développement).
@@ -384,3 +384,107 @@ Pharmacies approuvées dans le rayon (100 à 20 000 m), triées par distance en 
 
 Les pharmacies importées d'OpenStreetMap (ODbL) ont `source = 'OSM'`. Stocks et horaires sont simulés.
 Le proxy Angular transmet /api/** a la passerelle sur le port 8080 ; celle-ci route les demandes de disponibilite vers pharmacy-service (8082).
+
+## Notifications (US14 / EF24)
+
+Les utilisateurs sont prévenus **dans le site** (cloche 🔔 du menu) et **par e-mail** des événements qui les concernent.
+
+### Événements notifiés
+
+| Événement | Destinataire | Type | Lien ouvert |
+|---|---|---|---|
+| Nouvelle demande de disponibilité | pharmaciens des pharmacies contactées | `NOUVELLE_DEMANDE` | `/pharmacien/demandes` |
+| Réponse d'une pharmacie | patient | `REPONSE_PHARMACIE` | `/suivi-demande/{id}` |
+| Réservation confirmée | patient | `RESERVATION_CONFIRMEE` | `/suivi-demande/{id}` |
+| Nouvelle réservation | pharmacien | `NOUVELLE_RESERVATION` | `/pharmacien/demandes` |
+| Retrait validé au comptoir | patient | `RETRAIT_CONFIRME` | `/suivi-demande/{id}` |
+| Réservation expirée (2 h, US12) | patient | `RESERVATION_EXPIREE` | `/suivi-demande/{id}` |
+
+La réservation et le QR patient US12, les contrôles de durée et la recette navigateur sont détaillés dans le [guide US12](../docs/US12_RESERVATION_QR.md).
+
+Une pharmacie sans pharmacien inscrit (import OSM) est ignorée. Un pharmacien n'est prévenu qu'une fois par demande, même s'il possède plusieurs pharmacies contactées.
+
+### Confidentialité (ENF05, loi 09-08)
+
+- Les messages ne contiennent **jamais le nom des médicaments** : uniquement le nom de la pharmacie et le prix.
+- Les journaux ne contiennent aucune donnée personnelle : seulement l'identifiant technique de la notification.
+- pharmacy-service ne stocke pas les adresses e-mail : il les demande à auth-service au moment de l'envoi.
+
+### API (gateway : `/api/notifications/**`, utilisateur connecté)
+
+| Méthode | Route | Rôle | Réponse |
+|---|---|---|---|
+| `GET` | `/api/notifications/me` | patient ou pharmacien | `{ items: [...20 dernières], unread: n }` |
+| `POST` | `/api/notifications/{id}/read` | propriétaire de la notification | `204`, ou `404` si elle appartient à un autre utilisateur |
+| `POST` | `/api/notifications/read-all` | utilisateur connecté | `204` |
+
+### Envoi des e-mails : boîte d'envoi (pattern *outbox*)
+
+1. La notification est enregistrée **dans la même transaction** que l'événement (réponse, réservation…), avec `email_status = PENDING`.
+2. La tâche `EmailOutbox` s'exécute toutes les 30 s : elle verrouille un lot de 20 notifications (`FOR UPDATE SKIP LOCKED`), récupère l'adresse auprès d'auth-service, puis envoie l'e-mail.
+3. Statut final : `SENT`, `SKIPPED` (utilisateur inconnu ou désactivé), ou `FAILED` après 5 échecs. En cas d'échec, l'envoi est réessayé au passage suivant.
+
+Le métier ne dépend donc jamais du serveur e-mail : si celui-ci est en panne, les réponses et réservations continuent de fonctionner et les e-mails partent plus tard.
+
+### Configuration
+
+| Variable | Rôle | Valeur par défaut |
+|---|---|---|
+| `NOTIFICATIONS_EMAIL_ENABLED` | active l'envoi des e-mails | `false` (désactivé dans les tests) |
+| `MAIL_HOST` / `MAIL_PORT` | serveur SMTP | `localhost` / `1025` |
+| `MAIL_FROM` | expéditeur | `no-reply@dwadispo.local` |
+| `AUTH_SERVICE_URL` | adresse d'auth-service (appel interne) | `http://localhost:8081` |
+| `INTERNAL_API_TOKEN` | jeton partagé avec auth-service, **secret** | *(vide : e-mails refusés)* |
+| `FRONT_URL` | adresse du site, pour les liens des e-mails | `http://localhost:4200` |
+
+En local, **Mailpit** (service `mailpit` du `docker-compose.yaml`) reçoit tous les e-mails sans rien envoyer pour de vrai. Interface : **http://localhost:8025**.
+
+### Tests
+
+- `NotificationIntegrationTest` : chaque événement crée la bonne notification ; un utilisateur ne voit et ne marque que les siennes ; 401 sans jeton.
+- `EmailOutboxIntegrationTest` : envoi puis `SENT` ; jamais envoyé deux fois ; `SKIPPED` si l'utilisateur est inconnu ; réessai puis `FAILED` après 5 échecs.
+- `EmailComposerTest` : contenu de l'e-mail ; un lien externe n'est jamais repris.
+
+## Pharmacies de garde (US15)
+
+`GET /api/pharmacies/garde` (public) renvoie les pharmacies de garde du jour.
+
+- Paramètres optionnels `lat` et `lng`, à fournir ensemble (sinon 400). Avec la position, les résultats sont triés par distance (`distanceM`), sinon par nom.
+- « Aujourd'hui » est calculé côté serveur à l'heure du Maroc (`Africa/Casablanca`).
+- Les périodes de garde sont stockées dans `pharmacy_duties` (migration `V10__pharmacy_duties.sql`) : une ligne par pharmacie avec `starts_on` et `ends_on`, bornes incluses.
+- Seules les pharmacies visibles dans `/nearby` sont renvoyées (`APPROVED`, ou `OSM` + `UNVERIFIED`).
+- Données de démonstration (hors Flyway) : `scripts/demo-pharmacies.sql` puis `scripts/demo-gardes.sql`.
+
+
+## Notifications asynchrones avec Kafka (US14, évolution)
+
+Pour supporter de nombreux utilisateurs, les notifications ne sont plus créées pendant la requête de l'utilisateur.
+
+**Fonctionnement**
+1. Une action métier (nouvelle demande, réponse, réservation, retrait) publie un `NotificationEvent`.
+2. Après la transaction (AFTER_COMMIT), l'événement est envoyé dans le topic Kafka `dwadispo.notifications` (3 partitions).
+   La clé est l'identifiant de la demande ou de la réservation : les événements d'une même demande restent dans l'ordre.
+3. Trois consommateurs (groupe `notifications`) lisent les partitions en parallèle et créent les notifications.
+   L'e-mail est ensuite envoyé par l'outbox existante.
+
+**Garanties**
+- Idempotence : un événement déjà traité est ignoré (table `notification_events_traites`, migration V11).
+- Secours : si Kafka est indisponible, l'événement est traité directement ; aucune notification n'est perdue.
+- ENF05 : les événements ne contiennent que des identifiants, jamais de nom de médicament.
+
+**Configuration**
+
+| Variable | Rôle | Valeur par défaut |
+|---|---|---|
+| `NOTIFICATIONS_KAFKA_ENABLED` | active Kafka (sinon traitement direct, utilisé par les tests) | `false` |
+| `KAFKA_BOOTSTRAP_SERVERS` | adresse de Kafka | `localhost:9092` |
+
+**Observer Kafka**
+```bash
+# Interface web (outil de développement) : http://127.0.0.1:8090
+docker compose --profile outils up -d kafka-ui
+
+# État des consommateurs (le LAG doit être à 0)
+docker compose exec -T kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 --describe --group notifications
+```

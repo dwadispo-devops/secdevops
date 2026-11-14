@@ -1,5 +1,7 @@
 # prescription-service
 
+US17 fournit une estimation indicative du coût des lignes confirmées, sans inventer une base de remboursement : [fonctionnement, tests et recette](../docs/US17_ESTIMATION_ORDONNANCE.md).
+
 Lecture d'une ordonnance par IA vision (TS05, Sprint 1) puis **reconnaissance des médicaments dans le
 catalogue CNOPS avec un niveau de confiance** (US07, Sprint 2).
 

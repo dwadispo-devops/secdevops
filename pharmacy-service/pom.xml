@@ -36,6 +36,16 @@
     </dependencyManagement>
 
     <dependencies>
+        <!-- US14 : envoi des e-mails de notification -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+        <!-- US14 : notifications asynchrones avec Kafka -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
+        </dependency>
 
         <!-- Application -->
         <dependency>
