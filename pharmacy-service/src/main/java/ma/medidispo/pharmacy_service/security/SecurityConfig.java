@@ -77,6 +77,9 @@ public class SecurityConfig {
                                 "/api/pharmacies"
                         ).hasRole("PHARMACIEN")
 
+                        // US15 : le pharmacien gère les gardes de ses pharmacies
+                        .requestMatchers("/api/pharmacies/me/gardes", "/api/pharmacies/me/gardes/**").hasRole("PHARMACIEN")
+
                         // US03 : mes pharmacies
                         .requestMatchers(HttpMethod.GET, "/api/pharmacies/me").hasRole("PHARMACIEN")
 
