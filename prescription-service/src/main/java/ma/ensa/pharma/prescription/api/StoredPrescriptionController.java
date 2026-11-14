@@ -1,6 +1,7 @@
 package ma.ensa.pharma.prescription.api;
 
 import ma.ensa.pharma.prescription.api.dto.ReadPrescriptionResponse;
+import ma.ensa.pharma.prescription.api.dto.PrescriptionHistoryResponse;
 import ma.ensa.pharma.prescription.exception.PrescriptionException;
 import ma.ensa.pharma.prescription.security.PatientJwtService;
 import ma.ensa.pharma.prescription.security.PurgeDelegationService;
@@ -10,6 +11,7 @@ import ma.ensa.pharma.prescription.storage.PrescriptionStorageService;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 public class StoredPrescriptionController {
@@ -24,6 +26,13 @@ public class StoredPrescriptionController {
         this.patients=patients; this.delegation=delegation; this.purgeDelegation=purgeDelegation;
         this.readings=readings; this.storage=storage;
     }
+    @GetMapping("/api/v1/prescriptions")
+    public ResponseEntity<List<PrescriptionHistoryResponse>> history(
+            @RequestHeader(value="Authorization",required=false) String auth) {
+        UUID patientId = patients.authenticatedPatientId(auth);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(readings.history(patientId));
+    }
+
     @PostMapping("/api/v1/prescriptions/{id}/read")
     public ResponseEntity<ReadPrescriptionResponse> read(@RequestHeader(value="Authorization",required=false) String auth,
                                                         @PathVariable UUID id,

@@ -13,6 +13,14 @@ export interface ReadPrescriptionResponse {
   durationMs: number;
 }
 
+export interface PrescriptionHistoryItem {
+  id: string;
+  status: string;
+  fileType: string;
+  createdAt: string;
+  imageAvailable: boolean;
+}
+
 /** Réponse de POST /api/v1/prescriptions (US06). */
 export interface PrescriptionUploadResponse {
   id: string;
@@ -38,6 +46,12 @@ export class PrescriptionService {
   private readonly http = inject(HttpClient);
 
   private readonly apiUrl = '/api/v1/prescriptions';
+
+  history(token: string): Observable<PrescriptionHistoryItem[]> {
+    return this.http.get<PrescriptionHistoryItem[]>(this.apiUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
 
   readStored(id: string, token: string): Observable<ReadPrescriptionResponse> {
     return this.http.post<ReadPrescriptionResponse>(`${this.apiUrl}/${encodeURIComponent(id)}/read?consent=true`, null, {

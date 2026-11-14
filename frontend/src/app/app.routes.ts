@@ -19,6 +19,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/pharmacist-requests').then(m => m.PharmacistRequestsPage),
   },
   {
+    path: 'mes-ordonnances',
+    title: 'Mes ordonnances – DwaDispo',
+    loadComponent: () => import('./pages/prescription-history').then(m => m.PrescriptionHistoryPage),
+  },
+  {
     path: 'demande-disponibilite',
     title: 'Demande de disponibilité - MédiDispo',
     loadComponent: () => import('./pages/availability-request').then((m) => m.AvailabilityRequestPage),
