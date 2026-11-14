@@ -233,6 +233,18 @@ services:
       timeout: 10s
       retries: 10
 
+  # Interface web de Kafka (outil de développement) : démarrage avec --profile outils
+  kafka-ui:
+    image: ghcr.io/kafbat/kafka-ui:latest
+    profiles: ["outils"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: dwadispo
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports:
+      - "127.0.0.1:8090:8080"
+    depends_on:
+      - kafka
+
   mailpit:
     image: axllent/mailpit:v1.21
     ports:
