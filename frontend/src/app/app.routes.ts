@@ -19,6 +19,12 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/pharmacist-requests').then(m => m.PharmacistRequestsPage),
   },
   {
+    // US15 (amélioration) : le pharmacien déclare ses gardes
+    path: 'pharmacien/gardes',
+    title: 'Mes gardes – DwaDispo',
+    loadComponent: () => import('./pages/pharmacist-duties').then((m) => m.PharmacistDutiesPage),
+  },
+  {
     path: 'mes-ordonnances',
     title: 'Mes ordonnances – DwaDispo',
     loadComponent: () => import('./pages/prescription-history').then(m => m.PrescriptionHistoryPage),
