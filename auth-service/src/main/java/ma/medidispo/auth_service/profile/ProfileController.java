@@ -1,33 +1,44 @@
 package ma.medidispo.auth_service.profile;
 
+import jakarta.validation.Valid;
 import ma.medidispo.auth_service.auth.UserResponse;
-import ma.medidispo.auth_service.user.User;
-import ma.medidispo.auth_service.user.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+
+import static ma.medidispo.auth_service.profile.ProfileDtos.*;
 
 /** US20 / EF03 : profil de l'utilisateur connecté. L'identifiant vient du JWT, jamais de la requête. */
 @RestController
 @RequestMapping("/api/auth/me")
 public class ProfileController {
 
-    private final UserRepository users;
+    private final ProfileService service;
 
-    public ProfileController(UserRepository users) {
-        this.users = users;
+    public ProfileController(ProfileService service) {
+        this.service = service;
     }
 
     @GetMapping
-    public UserResponse me(Authentication auth) {
-        return users.findById(UUID.fromString(auth.getName()))
-                .filter(User::isEnabled)
-                .map(UserResponse::from)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Compte introuvable"));
+    public UserResponse moi(Authentication auth) {
+        return service.moi(id(auth));
+    }
+
+    @PutMapping
+    public UserResponse modifier(Authentication auth, @Valid @RequestBody UpdateProfileRequest request) {
+        return service.modifier(id(auth), request);
+    }
+
+    /** Toutes les sessions sont révoquées : l'utilisateur doit se reconnecter avec le nouveau mot de passe. */
+    @PutMapping("/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changerMotDePasse(Authentication auth, @Valid @RequestBody ChangePasswordRequest request) {
+        service.changerMotDePasse(id(auth), request);
+    }
+
+    private static UUID id(Authentication auth) {
+        return UUID.fromString(auth.getName());
     }
 }

@@ -30,6 +30,12 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/prescription-history').then(m => m.PrescriptionHistoryPage),
   },
   {
+    // US20 : mon profil (consulter, modifier, changer le mot de passe)
+    path: 'profil',
+    title: 'Mon profil – DwaDispo',
+    loadComponent: () => import('./pages/profile').then((m) => m.ProfilePage),
+  },
+  {
     path: 'demande-disponibilite',
     title: 'Demande de disponibilité - MédiDispo',
     loadComponent: () => import('./pages/availability-request').then((m) => m.AvailabilityRequestPage),

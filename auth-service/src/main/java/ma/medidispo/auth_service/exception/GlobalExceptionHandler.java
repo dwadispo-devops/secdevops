@@ -5,6 +5,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -37,5 +38,10 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST, "Données invalides");
         problem.setProperty("errors", errors);
         return problem;
+    }
+    /** Erreurs métier (profil, US20) : le message est renvoyé dans « detail » pour le frontend. */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ProblemDetail handleStatus(ResponseStatusException e) {
+        return ProblemDetail.forStatusAndDetail(e.getStatusCode(), e.getReason());
     }
 }
