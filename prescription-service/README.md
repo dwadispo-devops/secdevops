@@ -241,9 +241,7 @@ npm start
 
 Puis ouvrir http://localhost:4200/scan.
 
-> La page de connexion n'existe pas encore : pour tester, il faut mettre un jeton de patient
-> dans le navigateur (F12 → Console) :
-> `sessionStorage.setItem('access_token', '<jeton>')`
+> Pour tester, il faut être connecté avec un compte patient : ouvrir http://localhost:4200/connexion et se connecter (voir l'US18, étape 2, pour créer le compte).
 
 ---
 

@@ -359,7 +359,7 @@ data/osm/                              données locales, non versionnées
 ## 9. Limites connues et pistes d'amélioration
 
 - Les données OpenStreetMap n'ont souvent ni adresse, ni téléphone, ni horaires.
-- Pas de disponibilité en temps réel. Les gardes sont lues depuis `pharmacy_duties` (voir « Pharmacies de garde »); leur saisie se fait à la main par SQL chaque semaine (voir « Charger les gardes de la semaine »), sans interface d'administration.
+- Pas de disponibilité en temps réel. Les gardes sont lues depuis `pharmacy_duties` (voir « Pharmacies de garde »). Le pharmacien les déclare et les supprime lui-même dans la page « Mes gardes » ; le chargement SQL du tableau officiel (voir « Charger les gardes de la semaine ») reste possible pour une saisie groupée.
 - La précision de la position dépend de l'appareil ; envisager un clic sur la carte ou une recherche d'adresse comme alternative.
 - Cercle de précision autour du point bleu et choix du rayon (1 km, 2 km, 5 km) côté interface.
 - En production : servir le site en HTTPS et rediriger `/api` vers le service par le serveur web (le proxy Angular ne sert qu'en développement).
@@ -516,9 +516,27 @@ docker compose exec -T kafka /opt/kafka/bin/kafka-consumer-groups.sh \
 
 ## Gardes : chargement, vérification et démo (US15)
 
+### Déclarer ses gardes (page « Mes gardes »)
+
+Un pharmacien connecté déclare et supprime lui-même les gardes de ses pharmacies : http://localhost:4200/pharmacien/gardes
+
+API (rôle `PHARMACIEN`, l'identifiant vient du jeton : un pharmacien ne gère que ses pharmacies) :
+
+| Méthode | Route | Réponse |
+|---|---|---|
+| `GET` | `/api/pharmacies/me/gardes` | liste de ses gardes |
+| `POST` | `/api/pharmacies/me/gardes` | `201` ; corps `pharmacyId`, `startsOn`, `endsOn` |
+| `DELETE` | `/api/pharmacies/me/gardes/{id}` | `204` |
+
+Erreurs :
+
+- `400` : date de fin avant la date de début, période déjà terminée, ou période de plus de 31 jours.
+- `404` : pharmacie introuvable (ou qui n'est pas la sienne), ou garde inconnue à la suppression.
+- `409` : la pharmacie a déjà une garde sur cette période.
+
 ### Charger les gardes de la semaine
 
-Les gardes ne sont jamais inventées : elles viennent du tableau officiel du Syndicat des Pharmaciens de Marrakech, publié chaque semaine. Elles ne sont pas dans le dépôt (données locales, valables une semaine) et se chargent à la main, depuis la racine du projet.
+Les gardes ne sont jamais inventées : elles viennent du tableau officiel du Syndicat des Pharmaciens de Marrakech, publié chaque semaine. Elles ne sont pas dans le dépôt (données locales, valables une semaine) et peuvent se charger en groupe par SQL, depuis la racine du projet (le pharmacien, lui, passe par la page « Mes gardes »).
 
 Modèle pour une pharmacie (remplacer le nom et les dates) :
 
