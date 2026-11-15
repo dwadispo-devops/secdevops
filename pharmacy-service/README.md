@@ -144,7 +144,36 @@ Dans une VM, le navigateur n'a ni GPS ni Wi-Fi réel : la position « Me localis
 
 ## 5. Importer les pharmacies OpenStreetMap
 
-Le service contient un import au démarrage, **désactivé par défaut** (`OsmPharmacyImportRunner`).
+Le service contient un import au démarrage (`OsmPharmacyImportRunner`), **désactivé par défaut** : il n'est activé que par `docker-compose.yaml` (profil `dev`) ou par l'option `--osm.import.enabled=true`.
+
+### Import automatique avec Docker Compose (recommandé)
+
+Dans `docker-compose.yaml`, le service `pharmacy-service` lance l'import au démarrage (profil Spring `dev`) :
+
+| Variable | Valeur | Rôle |
+|---|---|---|
+| `OSM_IMPORT_ENABLED` | `"true"` | active l'import |
+| `OSM_IMPORT_FILE` | `/app/data/pharmacies-marrakech.geojson` | fichier lu dans le conteneur |
+| `OSM_IMPORT_ONLY_IF_EMPTY` | `"true"` | saute l'import si la table `pharmacies` contient déjà au moins une ligne |
+
+Le fichier `data/pharmacies-marrakech.geojson` est versionné et monté en lecture seule dans le conteneur.
+
+```bash
+docker compose up -d --build pharmacy-service
+docker compose logs pharmacy-service | grep -i "import osm"
+```
+
+Résultat attendu sur une base vide : 491 pharmacies insérées et 29 ignorées.
+
+Attention : avec `ONLY_IF_EMPTY`, l'import ne se lance que sur une table totalement vide. Si des pharmacies existent déjà (démonstration ou saisie à la main), il est sauté et le log affiche « Import OSM ignoré : la table contient déjà des pharmacies. »
+
+Vérification du comptage :
+
+```bash
+docker compose exec pharmacy-db sh -c 'psql -U "$POSTGRES_USER" -d pharmacydb -c "SELECT source, status, count(*) FROM pharmacies GROUP BY 1,2;"'
+```
+
+La méthode `mvnw` ci-dessous reste valable pour un import manuel hors Docker.
 
 ### Format attendu
 
@@ -167,10 +196,7 @@ Depuis `pharmacy-service/` :
 Le service affiche à la fin :
 
 ```
-========== IMPORT OSM TERMINÉ ==========
-Pharmacies insérées : N
-Pharmacies ignorées : M
-========================================
+Import OSM terminé : N insérées, M ignorées
 ```
 
 Arrêter ensuite le service (`Ctrl+C`) et le relancer **sans** `--osm.import.enabled`.
@@ -333,7 +359,7 @@ data/osm/                              données locales, non versionnées
 ## 9. Limites connues et pistes d'amélioration
 
 - Les données OpenStreetMap n'ont souvent ni adresse, ni téléphone, ni horaires.
-- Pas de disponibilité en temps réel. Les gardes sont lues depuis `pharmacy_duties` (voir « Pharmacies de garde »); leur saisie n'est pas encore gérée.
+- Pas de disponibilité en temps réel. Les gardes sont lues depuis `pharmacy_duties` (voir « Pharmacies de garde »); leur saisie se fait à la main par SQL chaque semaine (voir « Charger les gardes de la semaine »), sans interface d'administration.
 - La précision de la position dépend de l'appareil ; envisager un clic sur la carte ou une recherche d'adresse comme alternative.
 - Cercle de précision autour du point bleu et choix du rayon (1 km, 2 km, 5 km) côté interface.
 - En production : servir le site en HTTPS et rediriger `/api` vers le service par le serveur web (le proxy Angular ne sert qu'en développement).
@@ -453,7 +479,6 @@ En local, **Mailpit** (service `mailpit` du `docker-compose.yaml`) reçoit tous 
 - « Aujourd'hui » est calculé côté serveur à l'heure du Maroc (`Africa/Casablanca`).
 - Les périodes de garde sont stockées dans `pharmacy_duties` (migration `V10__pharmacy_duties.sql`) : une ligne par pharmacie avec `starts_on` et `ends_on`, bornes incluses.
 - Seules les pharmacies visibles dans `/nearby` sont renvoyées (`APPROVED`, ou `OSM` + `UNVERIFIED`).
-- Données de démonstration (hors Flyway) : `scripts/demo-pharmacies.sql` puis `scripts/demo-gardes.sql`.
 
 
 ## Notifications asynchrones avec Kafka (US14, évolution)
@@ -488,3 +513,51 @@ docker compose --profile outils up -d kafka-ui
 docker compose exec -T kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 --describe --group notifications
 ```
+
+## Gardes : chargement, vérification et démo (US15)
+
+### Charger les gardes de la semaine
+
+Les gardes ne sont jamais inventées : elles viennent du tableau officiel du Syndicat des Pharmaciens de Marrakech, publié chaque semaine. Elles ne sont pas dans le dépôt (données locales, valables une semaine) et se chargent à la main, depuis la racine du projet.
+
+Modèle pour une pharmacie (remplacer le nom et les dates) :
+
+```bash
+docker compose exec -T pharmacy-db sh -c 'psql -U "$POSTGRES_USER" -d pharmacydb' <<'SQL'
+INSERT INTO pharmacy_duties (pharmacy_id, starts_on, ends_on)
+SELECT id, DATE '2026-11-14', DATE '2026-11-20'
+FROM pharmacies
+WHERE name ILIKE '%nom de la pharmacie%'
+ON CONFLICT DO NOTHING;
+SQL
+```
+
+- La table `pharmacy_duties` a une contrainte d'unicité `(pharmacy_id, starts_on)` : relancer la même commande ne crée pas de doublon.
+- Vérifier qu'une seule pharmacie correspond au nom avant d'insérer. Pour les homonymes, contrôler aussi la position GPS.
+- Une pharmacie du tableau qui n'est pas retrouvée dans la base (nom différent, position éloignée) reste sans badge : on ne devine pas.
+
+### Vérifier les gardes
+
+```bash
+docker compose exec pharmacy-db sh -c 'psql -U "$POSTGRES_USER" -d pharmacydb -c "SELECT starts_on, ends_on, count(*) FROM pharmacy_duties GROUP BY 1,2;"'
+curl -s http://localhost:8080/api/pharmacies/garde
+```
+
+Après la date `ends_on`, `/garde` renvoie une liste vide : recharger les gardes de la nouvelle semaine.
+
+### Comportement du filtre « De garde aujourd'hui » (interface)
+
+- Le bouton affiche uniquement les pharmacies de garde ; chacune porte le badge « De garde » et un marqueur orange sur la carte.
+- Les gardes situées hors des 50 pharmacies `nearby` sont ajoutées à la liste (distance prise à 0 si le serveur n'en fournit pas).
+- Sans aucune garde, l'interface affiche « Aucune pharmacie de garde trouvée parmi les pharmacies proches. »
+
+### Données de démonstration (sans import OSM)
+
+Pour une démo rapide, depuis la racine du projet :
+
+```bash
+docker compose exec -T pharmacy-db sh -c 'psql -U "$POSTGRES_USER" -d pharmacydb' < pharmacy-service/scripts/demo-pharmacies.sql
+docker compose exec -T pharmacy-db sh -c 'psql -U "$POSTGRES_USER" -d pharmacydb' < pharmacy-service/scripts/demo-gardes.sql
+```
+
+`demo-pharmacies.sql` crée des pharmacies fictives, et `demo-gardes.sql` met les 5 plus proches du centre de garde pour une semaine. À ne pas charger avant l'import OSM : la table ne serait plus vide et `ONLY_IF_EMPTY` sauterait l'import.
