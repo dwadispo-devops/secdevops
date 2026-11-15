@@ -5,7 +5,10 @@ import { HttpErrorResponse } from '@angular/common/http';
 
 import { Profile, ProfileService } from '../services/profile.service';
 
-/** US20 / EF03 : consulter et modifier son profil, changer son mot de passe. */
+/** Clés de session effacées après un changement de mot de passe ou une suppression de compte. */
+const CLES_SESSION = ['access_token', 'refresh_token', 'last_prescription_id', 'demande_suivie'];
+
+/** US20 / EF03 : consulter et modifier son profil, changer son mot de passe, supprimer son compte. */
 @Component({
   selector: 'app-profile',
   standalone: true,
@@ -52,14 +55,39 @@ import { Profile, ProfileService } from '../services/profile.service';
             <button type="submit" [disabled]="sending()">Changer le mot de passe</button>
           </form>
         </section>
+
+        <section class="card danger" aria-labelledby="suppr">
+          <h2 id="suppr">Supprimer mon compte</h2>
+          <p>
+            Cette action est <strong>définitive</strong>. Seront effacés : votre compte,
+            @if (p.role === 'PHARMACIEN') {
+              vos notifications, et votre pharmacie sera détachée de votre compte.
+            } @else {
+              vos demandes, réservations, ordonnances (images comprises) et notifications.
+            }
+          </p>
+          <form (ngSubmit)="deleteAccount()">
+            <label>Mot de passe
+              <input type="password" name="deletePassword" [(ngModel)]="deletePassword" required autocomplete="current-password" />
+            </label>
+            <label class="check">
+              <input type="checkbox" name="confirmDelete" [(ngModel)]="confirmDelete" />
+              Je comprends que cette action est définitive.
+            </label>
+            <button type="submit" class="danger-button" [disabled]="sending()">Supprimer définitivement mon compte</button>
+          </form>
+        </section>
       }
     </main>
   `,
   styles: [`
     .profile { max-width: 640px; margin: 2rem auto; padding: 0 1rem; display: grid; gap: 1rem; }
     .card { padding: 1rem 1.25rem; border: 1px solid #dfe7e3; border-radius: 12px; display: grid; gap: .5rem; }
+    .card.danger { border-color: #f09595; background: #fcebeb; }
     form { display: grid; gap: .75rem; }
     label { display: grid; gap: .25rem; }
+    label.check { display: flex; align-items: center; gap: .5rem; }
+    .danger-button { background: #a32d2d; color: #fff; border: none; padding: .6rem 1rem; border-radius: 8px; cursor: pointer; }
     .hint { color: #5f5e5a; font-size: .9rem; }
     .error { color: #a32d2d; }
     .success { color: #0f6e56; }
@@ -81,6 +109,8 @@ export class ProfilePage implements OnInit {
   currentPassword = '';
   newPassword = '';
   confirmPassword = '';
+  deletePassword = '';
+  confirmDelete = false;
 
   ngOnInit(): void {
     this.loading.set(true);
@@ -130,11 +160,34 @@ export class ProfilePage implements OnInit {
     this.sending.set(true);
     this.service.changePassword(this.currentPassword, this.newPassword).subscribe({
       next: () => {
-        // Toutes les sessions ont été révoquées côté serveur : on efface la session locale
-        sessionStorage.removeItem('access_token');
-        sessionStorage.removeItem('refresh_token');
+        this.clearSession();
         this.sending.set(false);
         this.router.navigate(['/connexion'], { queryParams: { motDePasse: 'modifie' } });
+      },
+      error: (e: HttpErrorResponse) => {
+        this.error.set(this.message(e));
+        this.sending.set(false);
+      },
+    });
+  }
+
+  /** US20 / loi 09-08 : suppression définitive, confirmée par le mot de passe et la case à cocher. */
+  deleteAccount(): void {
+    this.reset();
+    if (!this.confirmDelete) {
+      this.error.set('Cochez la case pour confirmer que vous comprenez que la suppression est définitive.');
+      return;
+    }
+    if (!this.deletePassword) {
+      this.error.set('Saisissez votre mot de passe pour confirmer.');
+      return;
+    }
+    this.sending.set(true);
+    this.service.deleteAccount(this.deletePassword).subscribe({
+      next: () => {
+        this.clearSession();
+        this.sending.set(false);
+        this.router.navigate(['/'], { queryParams: { compte: 'supprime' } });
       },
       error: (e: HttpErrorResponse) => {
         this.error.set(this.message(e));
@@ -149,6 +202,10 @@ export class ProfilePage implements OnInit {
 
   format(iso: string): string {
     return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  private clearSession(): void {
+    CLES_SESSION.forEach((cle) => sessionStorage.removeItem(cle));
   }
 
   private reset(): void {

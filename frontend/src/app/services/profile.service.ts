@@ -32,4 +32,9 @@ export class ProfileService {
   changePassword(currentPassword: string, newPassword: string): Observable<void> {
     return this.http.put<void>(`${this.url}/password`, { currentPassword, newPassword }, { headers: this.headers() });
   }
+
+  /** US20 / loi 09-08 : suppression définitive du compte et de ses données. */
+  deleteAccount(password: string): Observable<void> {
+    return this.http.post<void>(`${this.url}/suppression`, { password }, { headers: this.headers() });
+  }
 }

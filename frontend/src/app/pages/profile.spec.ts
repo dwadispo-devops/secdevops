@@ -81,4 +81,39 @@ describe('ProfilePage (US20 – mon profil)', () => {
       { detail: 'Le mot de passe actuel est incorrect.' }, { status: 400, statusText: 'Bad Request' });
     expect(page.error()).toBe('Le mot de passe actuel est incorrect.');
   });
+  it('refuse la suppression sans la case cochée, sans appeler le serveur', async () => {
+    const page = (await start()).componentInstance;
+    page.deletePassword = 'Secret123';
+    page.confirmDelete = false;
+    page.deleteAccount();
+    expect(page.error()).toContain('Cochez la case');
+  });
+
+  it('supprime le compte, efface la session et renvoie vers l’accueil', async () => {
+    const page = (await start()).componentInstance;
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    sessionStorage.setItem('access_token', 'a');
+    sessionStorage.setItem('last_prescription_id', 'p1');
+    page.deletePassword = 'Secret123';
+    page.confirmDelete = true;
+    page.deleteAccount();
+    const req = http.expectOne('/api/auth/me/suppression');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ password: 'Secret123' });
+    req.flush(null, { status: 204, statusText: 'No Content' });
+    expect(sessionStorage.getItem('access_token')).toBeNull();
+    expect(sessionStorage.getItem('last_prescription_id')).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(['/'], { queryParams: { compte: 'supprime' } });
+  });
+
+  it('affiche le message du serveur si le mot de passe de suppression est faux', async () => {
+    const page = (await start()).componentInstance;
+    page.deletePassword = 'Faux0000';
+    page.confirmDelete = true;
+    page.deleteAccount();
+    http.expectOne('/api/auth/me/suppression').flush(
+      { detail: 'Le mot de passe est incorrect.' }, { status: 400, statusText: 'Bad Request' });
+    expect(page.error()).toBe('Le mot de passe est incorrect.');
+  });
 });
