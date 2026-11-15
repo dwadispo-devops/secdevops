@@ -160,6 +160,8 @@ services:
       eureka-server:
         condition: service_started
     environment:
+      COMPTES_KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       DB_URL: jdbc:postgresql://prescription-db:5432/prescriptiondb
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
