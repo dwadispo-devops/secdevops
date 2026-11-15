@@ -29,4 +29,9 @@ public final class ProfileDtos {
                      message = "Le mot de passe doit contenir au moins une lettre et un chiffre")
             String newPassword
     ) {}
+    /** US20 : suppression du compte, confirmée par le mot de passe. */
+    public record DeleteAccountRequest(
+            @NotBlank(message = "Le mot de passe est obligatoire")
+            String password
+    ) {}
 }

@@ -38,6 +38,13 @@ public class ProfileController {
         service.changerMotDePasse(id(auth), request);
     }
 
+    /** US20 / loi 09-08 : suppression définitive du compte, confirmée par le mot de passe. */
+    @PostMapping("/suppression")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void supprimer(Authentication auth, @Valid @RequestBody DeleteAccountRequest request) {
+        service.supprimer(id(auth), request);
+    }
+
     private static UUID id(Authentication auth) {
         return UUID.fromString(auth.getName());
     }

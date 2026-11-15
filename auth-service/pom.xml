@@ -68,6 +68,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+        <!-- US20 : publication de l'événement COMPTE_SUPPRIME dans Kafka -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
+        </dependency>
         <!-- Migrations de base de données versionnées (remplace ddl-auto=update) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
