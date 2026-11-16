@@ -12,6 +12,7 @@
     <a routerLink="/pharmacien/demandes" routerLinkActive="active">Espace pharmacien</a>
     @if (connected()) {
       <a routerLink="/profil" routerLinkActive="active">Mon profil</a>
+      <a routerLink="/alertes" routerLinkActive="active">Mes alertes</a>
       <app-notification-bell />
       <button type="button" (click)="logout()">Déconnexion</button>
     } @else {

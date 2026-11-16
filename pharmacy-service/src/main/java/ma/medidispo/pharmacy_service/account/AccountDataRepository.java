@@ -19,6 +19,7 @@ public class AccountDataRepository {
     public int effacerPatient(UUID patientId) {
         int n = jdbc.update("DELETE FROM reservations WHERE patient_id = ?", patientId);
         n += jdbc.update("DELETE FROM availability_requests WHERE patient_id = ?", patientId);
+        n += jdbc.update("DELETE FROM stock_alerts WHERE patient_id = ?", patientId);
         n += jdbc.update("DELETE FROM notifications WHERE user_id = ?", patientId);
         return n;
     }

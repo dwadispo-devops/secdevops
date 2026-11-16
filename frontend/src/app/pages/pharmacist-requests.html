@@ -2,6 +2,7 @@
   <h1>Demandes reçues par mes pharmacies</h1>
   <a routerLink="/pharmacien/connexion">Se connecter / changer de compte</a>
   <a routerLink="/pharmacien/gardes">Gérer mes gardes</a>
+  <a routerLink="/pharmacien/stock">Gérer mon stock</a>
   <p>Consultez l’ordonnance et envoyez une réponse au patient. Les prix sont exprimés en DH.</p>
   <button type="button" (click)="reload()" [disabled]="loading() || sending()">Actualiser les demandes</button>
   @if (error()) { <p role="alert" class="error">{{ error() }}</p> }

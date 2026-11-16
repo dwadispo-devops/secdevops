@@ -101,6 +101,7 @@ services:
       eureka-server:
         condition: service_started
     environment:
+      STOCK_KAFKA_ENABLED: "true"
       COMPTES_KAFKA_ENABLED: "true"
       NOTIFICATIONS_KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
