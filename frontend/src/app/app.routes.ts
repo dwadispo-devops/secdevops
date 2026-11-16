@@ -36,6 +36,18 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/profile').then((m) => m.ProfilePage),
   },
   {
+    // US22 : alertes de retour en stock (patient)
+    path: 'alertes',
+    title: 'Mes alertes – DwaDispo',
+    loadComponent: () => import('./pages/stock-alerts').then((m) => m.StockAlertsPage),
+  },
+  {
+    // US22 : le pharmacien met à jour son stock
+    path: 'pharmacien/stock',
+    title: 'Mon stock – DwaDispo',
+    loadComponent: () => import('./pages/pharmacist-stock').then((m) => m.PharmacistStockPage),
+  },
+  {
     path: 'demande-disponibilite',
     title: 'Demande de disponibilité - MédiDispo',
     loadComponent: () => import('./pages/availability-request').then((m) => m.AvailabilityRequestPage),
