@@ -80,6 +80,9 @@ public class SecurityConfig {
                         // US15 : le pharmacien gère les gardes de ses pharmacies
                         .requestMatchers("/api/pharmacies/me/gardes", "/api/pharmacies/me/gardes/**").hasRole("PHARMACIEN")
 
+                        // US22 : alertes de retour en stock, réservées au patient
+                        .requestMatchers("/api/alertes", "/api/alertes/**").hasRole("PATIENT")
+
                         // US03 : mes pharmacies
                         .requestMatchers(HttpMethod.GET, "/api/pharmacies/me").hasRole("PHARMACIEN")
 
