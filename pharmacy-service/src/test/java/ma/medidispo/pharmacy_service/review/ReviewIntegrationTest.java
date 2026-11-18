@@ -142,4 +142,73 @@ class ReviewIntegrationTest {
             assertThat(List.of(a.get(),b.get())).containsExactlyInAnyOrder(200,409);
         }
     }
+
+    @Test void dashboardShowsOwnedStatisticsAndProtectsAccess() throws Exception {
+        // La demande initiale devient une demande traitée.
+        jdbc.update("""
+            UPDATE availability_request_pharmacies
+            SET status='AVAILABLE', price=12.50, responded_at=now(), responded_by=?
+            WHERE request_id=? AND pharmacy_id=?
+            """, owner, request, pharmacy);
+
+        // Deuxième demande, toujours en attente.
+        UUID secondRequest = UUID.randomUUID();
+        UUID secondPatient = UUID.randomUUID();
+
+        jdbc.update("""
+            INSERT INTO availability_requests (id, patient_id, latitude, longitude, radius_m)
+            VALUES (?, ?, 31.63, -8, 5000)
+            """, secondRequest, secondPatient);
+
+        jdbc.update("""
+            INSERT INTO availability_request_pharmacies (request_id, pharmacy_id)
+            VALUES (?, ?)
+            """, secondRequest, pharmacy);
+
+        // Une réservation active pour la demande traitée.
+        jdbc.update("""
+            INSERT INTO reservations
+                (request_id, pharmacy_id, patient_id, pickup_code, status, price, expires_at)
+            VALUES (?, ?, ?, 'A12345', 'ACTIVE', ?, now() + interval '1 hour')
+            """, request, pharmacy, patient, new java.math.BigDecimal("12.50"));
+
+        // Une réservation déjà retirée pour la deuxième demande.
+        jdbc.update("""
+            INSERT INTO reservations
+                (request_id, pharmacy_id, patient_id, pickup_code, status, price, expires_at)
+            VALUES (?, ?, ?, 'B12345', 'RETIREE', ?, now() + interval '1 hour')
+            """, secondRequest, pharmacy, secondPatient, new java.math.BigDecimal("8.00"));
+
+        // Vérification des statistiques du propriétaire.
+        mvc.perform(get("/api/pharmacies/me/dashboard")
+                .header("Authorization", token(owner, "PHARMACIEN")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalRequests").value(2))
+            .andExpect(jsonPath("$.pendingRequests").value(1))
+            .andExpect(jsonPath("$.respondedRequests").value(1))
+            .andExpect(jsonPath("$.responseRate").value(50.0))
+            .andExpect(jsonPath("$.totalReservations").value(2))
+            .andExpect(jsonPath("$.activeReservations").value(1))
+            .andExpect(jsonPath("$.pickedUpReservations").value(1))
+            .andExpect(jsonPath("$.recentReservations.length()").value(2))
+            .andExpect(jsonPath("$.recentReservations[0].pickupCode").doesNotExist())
+            .andExpect(jsonPath("$.recentReservations[0].patientId").doesNotExist());
+
+        // Un autre pharmacien ne voit aucune donnée de cette pharmacie.
+        mvc.perform(get("/api/pharmacies/me/dashboard")
+                .header("Authorization", token(UUID.randomUUID(), "PHARMACIEN")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalRequests").value(0))
+            .andExpect(jsonPath("$.totalReservations").value(0))
+            .andExpect(jsonPath("$.recentReservations.length()").value(0));
+
+        // Les patients et les utilisateurs non authentifiés sont refusés.
+        mvc.perform(get("/api/pharmacies/me/dashboard")
+                .header("Authorization", token(patient, "PATIENT")))
+            .andExpect(status().isForbidden());
+
+        mvc.perform(get("/api/pharmacies/me/dashboard"))
+            .andExpect(status().isUnauthorized());
+    }
+
 }

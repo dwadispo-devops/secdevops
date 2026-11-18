@@ -98,6 +98,12 @@ export const routes: Routes = [
 
   // Pages réservées aux pharmaciens
   {
+    path: 'pharmacien/dashboard',
+    canActivate: [roleGuard('PHARMACIEN')],
+    title: 'Tableau de bord – MédiDispo',
+    loadComponent: () => import('./pages/pharmacist-dashboard').then(m => m.PharmacistDashboardPage),
+  },
+  {
     path: 'pharmacien/demandes',
     canActivate: [roleGuard('PHARMACIEN')],
     title: 'Demandes reçues - MédiDispo',

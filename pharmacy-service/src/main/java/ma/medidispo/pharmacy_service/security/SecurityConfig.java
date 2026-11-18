@@ -84,6 +84,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/alertes", "/api/alertes/**").hasRole("PATIENT")
 
                         // US03 : mes pharmacies
+                        // US25 : tableau de bord réservé au pharmacien
+                        .requestMatchers(HttpMethod.GET, "/api/pharmacies/me/dashboard").hasRole("PHARMACIEN")
+
                         .requestMatchers(HttpMethod.GET, "/api/pharmacies/me").hasRole("PHARMACIEN")
 
                         // Consultation par identifiant : utilisateur connecté
