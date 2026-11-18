@@ -261,7 +261,7 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
           radius: pharmacy.isOnDuty ? 10 : 8,
           color: '#ffffff',
           weight: 2,
-          fillColor: pharmacy.isOnDuty ? '#e58a24' : '#079779',
+          fillColor: pharmacy.isOnDuty ? '#b89b5e' : '#232323',
           fillOpacity: 1,
         },
       );
@@ -277,7 +277,7 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
       if (pharmacy.isOnDuty) {
         const badge = document.createElement('strong');
         badge.textContent = 'De garde';
-        badge.style.color = '#c87513';
+        badge.style.color = '#7a5f2e';
         popup.append(badge);
       }
 
@@ -356,9 +356,9 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
             [this.latitude, this.longitude],
             {
               radius: 9,
-              color: '#ffffff',
-              weight: 3,
-              fillColor: '#2878e8',
+              color: '#232323',
+              weight: 4,
+              fillColor: '#faf6ee',
               fillOpacity: 1,
             },
           )

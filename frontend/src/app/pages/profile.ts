@@ -82,7 +82,7 @@ const CLES_SESSION = ['access_token', 'refresh_token', 'last_prescription_id', '
   `,
   styles: [`
     .profile { max-width: 640px; margin: 2rem auto; padding: 0 1rem; display: grid; gap: 1rem; }
-    .card { padding: 1rem 1.25rem; border: 1px solid #dfe7e3; border-radius: 12px; display: grid; gap: .5rem; }
+    .card { padding: 1rem 1.25rem; border: 1px solid var(--couleur-bordure); border-radius: 12px; display: grid; gap: .5rem; }
     .card.danger { border-color: #f09595; background: #fcebeb; }
     form { display: grid; gap: .75rem; }
     label { display: grid; gap: .25rem; }
@@ -90,7 +90,7 @@ const CLES_SESSION = ['access_token', 'refresh_token', 'last_prescription_id', '
     .danger-button { background: #a32d2d; color: #fff; border: none; padding: .6rem 1rem; border-radius: 8px; cursor: pointer; }
     .hint { color: #5f5e5a; font-size: .9rem; }
     .error { color: #a32d2d; }
-    .success { color: #0f6e56; }
+    .success { color: var(--couleur-or-texte); }
   `],
 })
 export class ProfilePage implements OnInit {

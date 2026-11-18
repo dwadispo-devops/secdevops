@@ -33,9 +33,9 @@ export const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d).{8,72}$/;
     </main>
   `,
   styles: [`main { max-width: 480px; margin: 3rem auto; padding: 1.5rem; } form { display: grid; gap: .6rem; }
-    input, button { padding: .75rem; font: inherit; } h1 { color: #176b55; } small { color: #555; } .ko { color: #a11525; }
-    button { margin-top: .6rem; background: #176b55; color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
-    button:disabled { opacity: .6; cursor: default; } [role=alert] { color: #a11525; } a { color: #176b55; }`],
+    input, button { padding: .75rem; font: inherit; } h1 { color: var(--couleur-bandeau); } small { color: #555; } .ko { color: #a11525; }
+    button { margin-top: .6rem; background: var(--couleur-bandeau); color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: default; } [role=alert] { color: #a11525; } a { color: var(--couleur-or-texte); }`],
 })
 export class RegisterPage {
   private readonly http = inject(HttpClient);

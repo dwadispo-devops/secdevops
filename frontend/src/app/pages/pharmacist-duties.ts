@@ -70,14 +70,14 @@ import { MyDuty, MyDutyService, MyPharmacy } from '../services/my-duty.service';
   `,
   styles: [`
     .duties { max-width: 760px; margin: 2rem auto; padding: 0 1rem; display: grid; gap: 1rem; }
-    .duty-form { display: grid; gap: .75rem; padding: 1rem; border: 1px solid #dfe7e3; border-radius: 12px; }
+    .duty-form { display: grid; gap: .75rem; padding: 1rem; border: 1px solid var(--couleur-bordure); border-radius: 12px; }
     .duty-form label { display: grid; gap: .25rem; }
     .duty { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
-            padding: .75rem 1rem; border: 1px solid #dfe7e3; border-radius: 12px; margin-bottom: .5rem; }
+            padding: .75rem 1rem; border: 1px solid var(--couleur-bordure); border-radius: 12px; margin-bottom: .5rem; }
     .duty div { display: grid; gap: .2rem; }
-    .badge { font-size: .85rem; color: #0f6e56; }
+    .badge { font-size: .85rem; color: var(--couleur-or-texte); }
     .error { color: #a32d2d; }
-    .success { color: #0f6e56; }
+    .success { color: var(--couleur-or-texte); }
   `],
 })
 export class PharmacistDutiesPage implements OnInit {

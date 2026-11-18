@@ -49,15 +49,15 @@ import { OrdonnanceService } from '../services/ordonnance';
   `,
   styles: [`
     .container { max-width: 850px; margin: 40px auto; padding: 24px; }
-    h1 { color: #176b55; }
+    h1 { color: var(--couleur-bandeau); }
     .prescription { display: flex; justify-content: space-between; align-items: center;
       gap: 16px; flex-wrap: wrap; margin: 16px 0; padding: 18px;
-      border: 1px solid #d0d7d4; border-radius: 8px; }
+      border: 1px solid var(--couleur-bordure); border-radius: 8px; }
     h2 { margin: 0 0 8px; font-size: 1.1rem; }
     p { margin: 5px 0; }
     .reference { color: #555; font-size: .85rem; overflow-wrap: anywhere; }
     .warning, .error { color: #b00020; }
-    button { padding: 12px 16px; background: #176b55; color: white;
+    button { padding: 12px 16px; background: var(--couleur-bandeau); color: white;
       border: 0; border-radius: 6px; cursor: pointer; }
     button:disabled { opacity: .5; cursor: not-allowed; }
   `],
