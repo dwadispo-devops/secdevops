@@ -21,6 +21,7 @@
     }
 
     @if (connected() && profile()?.role === 'PHARMACIEN') {
+      <a routerLink="/pharmacien/dashboard" routerLinkActive="active">Tableau de bord</a>
       <a routerLink="/pharmacien/demandes" routerLinkActive="active">Demandes reçues</a>
       <a routerLink="/pharmacien/gardes" routerLinkActive="active">Mes gardes</a>
     }
