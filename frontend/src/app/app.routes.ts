@@ -89,6 +89,12 @@ export const routes: Routes = [
     title: 'Mes ordonnances – DwaDispo',
     loadComponent: () => import('./pages/prescription-history').then(m => m.PrescriptionHistoryPage),
   },
+  {
+    path: 'alertes',
+    canActivate: [roleGuard('PATIENT')],
+    title: 'Mes alertes – DwaDispo',
+    loadComponent: () => import('./pages/stock-alerts').then(m => m.StockAlertsPage),
+  },
 
   // Pages réservées aux pharmaciens
   {
@@ -102,6 +108,12 @@ export const routes: Routes = [
     canActivate: [roleGuard('PHARMACIEN')],
     title: 'Mes gardes – DwaDispo',
     loadComponent: () => import('./pages/pharmacist-duties').then(m => m.PharmacistDutiesPage),
+  },
+  {
+    path: 'pharmacien/stock',
+    canActivate: [roleGuard('PHARMACIEN')],
+    title: 'Mon stock – DwaDispo',
+    loadComponent: () => import('./pages/pharmacist-stock').then(m => m.PharmacistStockPage),
   },
 
   // Accessible à tout utilisateur connecté
