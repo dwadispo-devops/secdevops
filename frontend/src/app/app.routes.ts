@@ -90,6 +90,12 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/prescription-history').then(m => m.PrescriptionHistoryPage),
   },
   {
+    path: 'profils-proches',
+    canActivate: [roleGuard('PATIENT')],
+    title: 'Profils proches – DwaDispo',
+    loadComponent: () => import('./pages/family-profiles').then(m => m.FamilyProfilesPage),
+  },
+  {
     path: 'alertes',
     canActivate: [roleGuard('PATIENT')],
     title: 'Mes alertes – DwaDispo',

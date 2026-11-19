@@ -53,6 +53,35 @@ class PrescriptionStorageServiceTest {
     }
 
     @Test
+    void associeUneOrdonnanceAuProfilActifDuPatient() {
+        FamilyProfileRepository profiles = mock(FamilyProfileRepository.class);
+        UUID profileId = UUID.randomUUID();
+        FamilyProfile profile = new FamilyProfile(patient, "Maman");
+        when(profiles.findByIdAndPatientIdAndDeletedAtIsNull(profileId, patient)).thenReturn(Optional.of(profile));
+        PrescriptionStorageService withProfiles = new PrescriptionStorageService(
+                prescriptions, images, new FileValidator(), encryption, profiles);
+
+        Prescription saved = withProfiles.store(patient, PNG, "ordo.png", true, profileId);
+
+        assertThat(saved.getFamilyProfile()).isSameAs(profile);
+        verify(prescriptions).save(saved);
+    }
+
+    @Test
+    void nePermetPasDeLierUneOrdonnanceAuProfilDUnAutrePatient() {
+        FamilyProfileRepository profiles = mock(FamilyProfileRepository.class);
+        UUID profileId = UUID.randomUUID();
+        PrescriptionStorageService withProfiles = new PrescriptionStorageService(
+                prescriptions, images, new FileValidator(), encryption, profiles);
+
+        assertThatThrownBy(() -> withProfiles.store(patient, PNG, "ordo.png", true, profileId))
+                .isInstanceOf(PrescriptionException.class)
+                .hasFieldOrPropertyWithValue("code", "PROFILE_NOT_FOUND");
+        verifyNoInteractions(images);
+        verify(prescriptions, never()).save(any());
+    }
+
+    @Test
     void refuseSansConsentementSansRienEnregistrer() {
         assertThatThrownBy(() -> service.store(patient, PNG, "ordo.png", false))
                 .isInstanceOf(PrescriptionException.class)

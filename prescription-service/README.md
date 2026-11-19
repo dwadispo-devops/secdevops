@@ -244,3 +244,30 @@ Puis ouvrir http://localhost:4200/scan.
 > La page de connexion n'existe pas encore : pour tester, il faut mettre un jeton de patient
 > dans le navigateur (F12 → Console) :
 > `sessionStorage.setItem('access_token', '<jeton>')`
+
+---
+
+# US24 — Profils proches
+
+Le patient peut créer, renommer et supprimer des profils proches identifiés uniquement par un libellé
+(60 caractères maximum). Aucune date de naissance n'est collectée. Les profils appartiennent au compte
+patient identifié par le JWT ; aucun identifiant patient n'est accepté dans le corps ou dans l'URL.
+
+| Méthode et chemin | Rôle | Résultat |
+|---|---|---|
+| `GET /api/v1/prescriptions/profiles` | PATIENT | Profils actifs, sans cache |
+| `POST /api/v1/prescriptions/profiles` | PATIENT | Crée un profil (`{"label":"Maman"}`), réponse 201 |
+| `PATCH /api/v1/prescriptions/profiles/{id}` | PATIENT | Renomme un profil (`{"label":"Maman"}`), réponse 200 |
+| `DELETE /api/v1/prescriptions/profiles/{id}` | PATIENT | Masque le profil des choix futurs, réponse 204 |
+| `POST /api/v1/prescriptions` | PATIENT | Multipart : `file`, `consent`, et `profileId` facultatif |
+| `GET /api/v1/prescriptions?profile=all\|me\|{profileId}` | PATIENT | Historique complet, personnel ou filtré par proche |
+
+Les routes de profils renvoient `401` sans jeton valide, `403` pour un rôle autre que `PATIENT`, `404`
+pour un profil absent ou appartenant à un autre patient, `409` pour un libellé actif déjà utilisé, et
+`400` pour un libellé vide ou trop long. Les réponses d'erreur sont en français au format RFC 7807.
+
+Un profil supprimé ne peut plus être sélectionné pour un nouvel envoi. Les ordonnances déjà associées
+gardent leur profil et leur libellé dans l'historique. Les champs de profil ne sont pas renvoyés par les
+routes internes utilisées par le pharmacien. Le quota de réservations reste calculé par compte patient.
+La suppression d'un profil ne purge pas les images et ne crée pas de notification. La suppression du
+compte patient efface également ses profils, après ses ordonnances.

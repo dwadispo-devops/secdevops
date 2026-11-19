@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { PrescriptionHistoryItem, PrescriptionService } from '../services/prescription.service';
+import { FamilyProfile, PrescriptionHistoryItem, PrescriptionService } from '../services/prescription.service';
 import { OrdonnanceService } from '../services/ordonnance';
 
 @Component({
@@ -12,6 +12,14 @@ import { OrdonnanceService } from '../services/ordonnance';
     <main class="container">
       <h1>Mes ordonnances</h1>
       <p>Retrouvez les ordonnances enregistrées sur votre compte.</p>
+
+      <label>Afficher :
+        <select data-testid="history-filter" [value]="filter()" (change)="changeFilter($event)">
+          <option value="all">Toutes</option>
+          <option value="me">Moi</option>
+          @for (profile of filterProfiles(); track profile.id) { <option [value]="profile.id">{{ profile.label }}</option> }
+        </select>
+      </label>
 
       @if (loading()) {
         <p role="status">Chargement de vos ordonnances…</p>
@@ -31,6 +39,7 @@ import { OrdonnanceService } from '../services/ordonnance';
           <div>
             <h2>Ordonnance du {{ item.createdAt | date:'dd/MM/yyyy à HH:mm' }}</h2>
             <p>Format : {{ item.fileType }} · Statut : {{ item.status }}</p>
+            @if (item.profileLabel) { <p>Pour : {{ item.profileLabel }}</p> }
             <p class="reference">Référence : {{ item.id }}</p>
             @if (!item.imageAvailable) {
               <p class="warning">Image indisponible : cette ordonnance ne peut plus être relancée.</p>
@@ -71,6 +80,15 @@ export class PrescriptionHistoryPage implements OnInit {
   readonly loading = signal(false);
   readonly relaunching = signal<string | null>(null);
   readonly error = signal('');
+  readonly filter = signal('all');
+  readonly profiles = signal<FamilyProfile[]>([]);
+  readonly filterProfiles = () => {
+    const byId = new Map(this.profiles().map(p => [p.id, p]));
+    for (const item of this.items()) if (item.profileId && item.profileLabel && !byId.has(item.profileId)) {
+      byId.set(item.profileId, { id: item.profileId, label: item.profileLabel, createdAt: item.createdAt });
+    }
+    return [...byId.values()];
+  };
 
   ngOnInit(): void {
     const token = sessionStorage.getItem('access_token');
@@ -80,7 +98,19 @@ export class PrescriptionHistoryPage implements OnInit {
     }
 
     this.loading.set(true);
-    this.prescriptions.history(token).subscribe({
+    this.prescriptions.familyProfiles(token).subscribe({ next: p => this.profiles.set(p), error: () => undefined });
+    this.loadHistory(token, this.filter());
+  }
+
+  changeFilter(event: Event): void {
+    this.filter.set((event.target as HTMLSelectElement).value);
+    const token = sessionStorage.getItem('access_token');
+    if (token) this.loadHistory(token, this.filter());
+  }
+
+  private loadHistory(token: string, filter: string): void {
+    this.loading.set(true);
+    this.prescriptions.history(token, filter).subscribe({
       next: items => {
         this.items.set(items);
         this.loading.set(false);

@@ -90,4 +90,23 @@ public class PrescriptionException extends RuntimeException {
         return new PrescriptionException(HttpStatus.NOT_FOUND, "PRESCRIPTION_NOT_FOUND",
                 "Ordonnance introuvable.");
     }
+
+    public static PrescriptionException profileNotFound() {
+        return new PrescriptionException(HttpStatus.NOT_FOUND, "PROFILE_NOT_FOUND", "Profil introuvable.");
+    }
+
+    public static PrescriptionException profileLabelConflict() {
+        return new PrescriptionException(HttpStatus.CONFLICT, "PROFILE_LABEL_CONFLICT",
+                "Un profil porte déjà ce libellé.");
+    }
+
+    public static PrescriptionException invalidProfileLabel() {
+        return new PrescriptionException(HttpStatus.BAD_REQUEST, "INVALID_PROFILE_LABEL",
+                "Le libellé doit contenir entre 1 et 60 caractères.");
+    }
+
+    public static PrescriptionException invalidHistoryFilter() {
+        return new PrescriptionException(HttpStatus.BAD_REQUEST, "INVALID_HISTORY_FILTER",
+                "Le filtre doit être 'all', 'me' ou l'identifiant d'un profil.");
+    }
 }
