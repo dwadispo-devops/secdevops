@@ -361,6 +361,16 @@ Pharmacies et recherche par rayon (US04 / EF15). Spring Boot 4, PostgreSQL 16 + 
 
 ## API
 
+### Annuler une réservation (US19 / EF22)
+
+`POST /api/availability-requests/{request}/reservations/{id}/cancel` — rôle `PATIENT`, sans corps.
+Le patient est identifié par le jeton. Une réponse `200` retourne la réservation avec `status: "ANNULEE"`.
+Les réponses `401` et `403` indiquent respectivement un jeton absent/invalide/expiré et un rôle non autorisé.
+La réponse `404` est uniforme pour une réservation inconnue, appartenant à un autre patient, ou dont la demande ne correspond pas.
+La réponse `409` indique que la réservation du patient n'est plus annulable (déjà retirée, annulée ou expirée).
+L'annulation libère le quota des réservations actives et permet de réserver à nouveau sur la même demande.
+Elle ne purge pas l'image d'ordonnance et ne crée pas de notification.
+
 ### PowerShell
 
 Depuis `pharmacy-service`, exécuter `./start-local.ps1` avec Java 21 et Docker actifs.
