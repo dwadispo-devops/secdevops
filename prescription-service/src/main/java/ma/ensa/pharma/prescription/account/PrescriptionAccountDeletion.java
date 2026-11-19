@@ -18,6 +18,7 @@ import java.util.UUID;
 public class PrescriptionAccountDeletion {
 
     static final String SQL = "DELETE FROM prescription WHERE patient_id = ?";
+    static final String PROFILE_SQL = "DELETE FROM family_profile WHERE patient_id = ?";
     private static final Logger log = LoggerFactory.getLogger(PrescriptionAccountDeletion.class);
 
     private final JdbcTemplate jdbc;
@@ -32,6 +33,7 @@ public class PrescriptionAccountDeletion {
             return; // seuls les patients ont des ordonnances
         }
         int n = jdbc.update(SQL, userId);
+        jdbc.update(PROFILE_SQL, userId);
         log.info("Compte supprimé (PATIENT) : {} ordonnance(s) effacée(s), images comprises", n);
     }
 }

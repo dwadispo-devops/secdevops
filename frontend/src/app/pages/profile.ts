@@ -39,6 +39,13 @@ const CLES_SESSION = ['access_token', 'refresh_token', 'last_prescription_id', '
           </form>
         </section>
 
+        @if (p.role === 'PATIENT') {
+          <section class="card"><h2>Ordonnances de mes proches</h2>
+            <p>Gérez les profils utilisés pour classer les ordonnances.</p>
+            <a routerLink="/profils-proches">Gérer les profils proches</a>
+          </section>
+        }
+
         <section class="card" aria-labelledby="mdp">
           <h2 id="mdp">Changer mon mot de passe</h2>
           <p class="hint">Après le changement, vous serez déconnecté de tous vos appareils.</p>

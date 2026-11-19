@@ -1,8 +1,9 @@
-import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { OrdonnanceService } from '../services/ordonnance';
 import {
+  FamilyProfile,
   MAX_FILE_SIZE,
   PrescriptionService,
   PrescriptionUploadResponse,
@@ -37,6 +38,13 @@ import {
         </section>
       } @else {
         <p>Prenez votre ordonnance en photo ou importez-la (JPG, PNG ou PDF, 5 Mo maximum).</p>
+
+        <label class="profile-choice">Cette ordonnance est pour
+          <select data-testid="family-profile" [value]="selectedProfileId() ?? ''" (change)="selectProfile($event)">
+            <option value="">Moi</option>
+            @for (profile of profiles(); track profile.id) { <option [value]="profile.id">{{ profile.label }}</option> }
+          </select>
+        </label>
 
         <div class="choices">
           <button type="button" (click)="cameraInput.click()" [disabled]="busy()">
@@ -117,7 +125,7 @@ import {
     .error { color: #b00020; font-weight: 600; }
   `],
 })
-export class ScanPage implements OnDestroy {
+export class ScanPage implements OnDestroy, OnInit {
   private readonly prescriptionService = inject(PrescriptionService);
   private readonly ordonnance = inject(OrdonnanceService);
   private readonly router = inject(Router);
@@ -132,6 +140,17 @@ export class ScanPage implements OnDestroy {
   readonly readingMessage = signal('');
   /** EF10 / ENF07 : la lecture a échoué, on propose la saisie manuelle. */
   readonly readingFailed = signal(false);
+  readonly profiles = signal<FamilyProfile[]>([]);
+  readonly selectedProfileId = signal<string | null>(null);
+
+  ngOnInit(): void {
+    const token = sessionStorage.getItem('access_token');
+    if (token) this.prescriptionService.familyProfiles(token).subscribe({ next: p => this.profiles.set(p), error: () => undefined });
+  }
+
+  selectProfile(event: Event): void {
+    this.selectedProfileId.set((event.target as HTMLSelectElement).value || null);
+  }
 
   readStored(id: string): void {
     const token = sessionStorage.getItem('access_token');
@@ -220,7 +239,7 @@ export class ScanPage implements OnDestroy {
     this.loading.set(true);
     this.error.set('');
 
-    this.prescriptionService.upload(file, true, token).subscribe({
+    this.prescriptionService.upload(file, true, token, this.selectedProfileId()).subscribe({
       next: response => {
         this.loading.set(false);
         // Identifiant réutilisable par l'étape suivante (lecture IA, US07)

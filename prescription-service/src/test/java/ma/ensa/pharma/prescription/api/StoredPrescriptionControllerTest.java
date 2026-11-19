@@ -69,7 +69,8 @@ class StoredPrescriptionControllerTest {
         when(delegation.patient("Bearer server",id)).thenReturn(patient);
         when(readings.view(patient,id)).thenReturn(new StoredReadingService.View(true,"image/png","Existing OCR",List.of()));
         mvc.perform(get("/internal/prescriptions/"+id).header("Authorization","Bearer server"))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.ocrText").value("Existing OCR"));
+            .andExpect(status().isOk()).andExpect(jsonPath("$.ocrText").value("Existing OCR"))
+            .andExpect(jsonPath("$.profileId").doesNotExist()).andExpect(jsonPath("$.profileLabel").doesNotExist());
     }
     @Test void noDelegationAndDeletedImageFailClosed() throws Exception {
         when(delegation.patient(null,id)).thenThrow(PrescriptionException.unauthenticated());

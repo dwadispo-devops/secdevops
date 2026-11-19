@@ -18,6 +18,7 @@ class PrescriptionAccountDeletionTest {
     @Test void effaceToutesLesOrdonnancesDuPatient() {
         deletion.compteSupprime(patient, "PATIENT");
         verify(jdbc).update(PrescriptionAccountDeletion.SQL, patient);
+        verify(jdbc).update(PrescriptionAccountDeletion.PROFILE_SQL, patient);
     }
 
     @Test void neToucheRienPourUnPharmacien() {
@@ -29,6 +30,7 @@ class PrescriptionAccountDeletionTest {
         listener.recevoir("{\"id\":\"" + UUID.randomUUID() + "\",\"type\":\"COMPTE_SUPPRIME\",\"userId\":\""
             + patient + "\",\"role\":\"PATIENT\",\"occurredAt\":\"2026-11-15T21:00:00Z\"}");
         verify(jdbc).update(PrescriptionAccountDeletion.SQL, patient);
+        verify(jdbc).update(PrescriptionAccountDeletion.PROFILE_SQL, patient);
     }
 
     @Test void ignoreLesAutresEvenements() throws Exception {
