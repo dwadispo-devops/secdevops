@@ -16,7 +16,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class ReservationSecurityConfig {
     @Bean @Order(-1)
     SecurityFilterChain reservationChain(HttpSecurity http, JwtService jwt) throws Exception {
-        return http.securityMatcher("/api/availability-requests/*/reservations", "/api/availability-requests/*/reservation")
+        return http.securityMatcher("/api/availability-requests/*/reservations", "/api/availability-requests/*/reservation",
+                "/api/availability-requests/*/reservations/*/rating")
             .csrf(c -> c.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(e -> e.authenticationEntryPoint((q, r, x) -> r.sendError(401))

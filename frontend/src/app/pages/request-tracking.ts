@@ -6,6 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Observable, catchError, forkJoin, map, of, switchMap, timer } from 'rxjs';
 import { CartePharmaciesComponent, PointCarte } from '../components/carte-pharmacies';
 import { ReservationQrComponent } from '../components/reservation-qr';
+import { PharmacyRatingComponent } from '../components/pharmacy-rating';
 import { PharmacyService } from '../services/pharmacy.service';
 
 /** Format de GET /api/availability-requests/{id}/responses (ReviewDtos.Request). */
@@ -44,7 +45,7 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
 
 @Component({
   selector: 'app-request-tracking',
-  imports: [DecimalPipe, RouterLink, CartePharmaciesComponent, ReservationQrComponent],
+  imports: [DecimalPipe, RouterLink, CartePharmaciesComponent, ReservationQrComponent, PharmacyRatingComponent],
   template: `
     <main class="suivi">
       <h1>Suivi de ma demande</h1>
@@ -74,6 +75,7 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
           } @else if (res.status === 'RETIREE') {
             <h2>📦 Médicaments retirés</h2>
             <p>Merci d’avoir utilisé DwaDispo.</p>
+            <app-pharmacy-rating [requestId]="res.requestId" [reservationId]="res.id" />
           } @else {
             <h2>Réservation annulée</h2>
           }
