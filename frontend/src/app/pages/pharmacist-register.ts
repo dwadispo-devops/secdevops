@@ -73,15 +73,15 @@ export interface PharmacieInscrite { id: string; name: string; status: string; }
       }
     </main>
   `,
-  styles: [`main { max-width: 560px; margin: 2.5rem auto; padding: 1.5rem; } h1 { color: #176b55; }
-    form { display: grid; gap: 1rem; } fieldset { display: grid; gap: .5rem; border: 1px solid #dfe6e3; border-radius: 10px; padding: 1rem 1.2rem; }
-    legend { font-weight: 700; color: #176b55; padding: 0 .3rem; } input, button { padding: .7rem; font: inherit; }
+  styles: [`main { max-width: 560px; margin: 2.5rem auto; padding: 1.5rem; } h1 { color: var(--couleur-bandeau); }
+    form { display: grid; gap: 1rem; } fieldset { display: grid; gap: .5rem; border: 1px solid var(--couleur-bordure); border-radius: 10px; padding: 1rem 1.2rem; }
+    legend { font-weight: 700; color: var(--couleur-or-texte); padding: 0 .3rem; } input, button { padding: .7rem; font: inherit; }
     small { color: #555; } .ko, [role=alert] { color: #a11525; } .ok { color: #166534; font-weight: 600; }
     .position { display: grid; grid-template-columns: auto 1fr 1fr; gap: .5rem; }
     @media (max-width: 520px) { .position { grid-template-columns: 1fr; } }
-    .primaire { background: #176b55; color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
-    .primaire:disabled { opacity: .55; cursor: default; } a { color: #176b55; }
-    .succes { padding: 1.2rem 1.5rem; border-radius: 12px; background: #e8f5ef; border: 2px solid #16a34a; }`],
+    .primaire { background: var(--couleur-bandeau); color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
+    .primaire:disabled { opacity: .55; cursor: default; } a { color: var(--couleur-or-texte); }
+    .succes { padding: 1.2rem 1.5rem; border-radius: 12px; background: #f3ecdb; border: 2px solid #b89b5e; }`],
 })
 export class PharmacistRegisterPage {
   private readonly http = inject(HttpClient);

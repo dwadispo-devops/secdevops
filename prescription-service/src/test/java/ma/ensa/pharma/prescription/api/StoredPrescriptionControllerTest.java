@@ -1,6 +1,8 @@
 package ma.ensa.pharma.prescription.api;
 
 import ma.ensa.pharma.prescription.security.*;
+import ma.ensa.pharma.prescription.api.dto.PrescriptionHistoryResponse;
+import java.time.Instant;
 import ma.ensa.pharma.prescription.service.StoredReadingService;
 import ma.ensa.pharma.prescription.storage.PrescriptionStorageService;
 import ma.ensa.pharma.prescription.exception.PrescriptionException;
@@ -23,6 +25,39 @@ class StoredPrescriptionControllerTest {
     @MockitoBean StoredReadingService readings;
     @MockitoBean PrescriptionStorageService storage;
     UUID patient=UUID.randomUUID(), id=UUID.randomUUID();
+    @Test
+    void patientHistory_returnsOnlyOwnPrescriptionsWithoutCache() throws Exception {
+        UUID prescriptionId = UUID.randomUUID();
+        when(patients.authenticatedPatientId("Bearer patient-token")).thenReturn(patient);
+        when(readings.history(patient)).thenReturn(List.of(
+            new PrescriptionHistoryResponse(prescriptionId, "UPLOADED", "PDF",
+                Instant.parse("2026-11-13T10:00:00Z"), true)
+        ));
+
+        mvc.perform(get("/api/v1/prescriptions").header("Authorization", "Bearer patient-token"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Cache-Control", "no-store"))
+            .andExpect(jsonPath("$[0].id").value(prescriptionId.toString()))
+            .andExpect(jsonPath("$[0].status").value("UPLOADED"))
+            .andExpect(jsonPath("$[0].fileType").value("PDF"))
+            .andExpect(jsonPath("$[0].imageAvailable").value(true))
+            .andExpect(jsonPath("$[0].patientId").doesNotExist())
+            .andExpect(jsonPath("$[0].readingData").doesNotExist());
+
+        verify(readings).history(patient);
+    }
+
+    @Test
+    void patientHistory_rejectsUnauthenticatedRequest() throws Exception {
+        when(patients.authenticatedPatientId(null))
+            .thenThrow(PrescriptionException.unauthenticated());
+
+        mvc.perform(get("/api/v1/prescriptions"))
+            .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(readings);
+    }
+
     @Test void scopedImageUsesRealStorageAndNoCache() throws Exception {
         when(delegation.patient("Bearer server",id)).thenReturn(patient);
         when(storage.loadImage(patient,id)).thenReturn(new PrescriptionStorageService.StoredImage("image/png",new byte[]{1,2,3}));
@@ -34,7 +69,8 @@ class StoredPrescriptionControllerTest {
         when(delegation.patient("Bearer server",id)).thenReturn(patient);
         when(readings.view(patient,id)).thenReturn(new StoredReadingService.View(true,"image/png","Existing OCR",List.of()));
         mvc.perform(get("/internal/prescriptions/"+id).header("Authorization","Bearer server"))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.ocrText").value("Existing OCR"));
+            .andExpect(status().isOk()).andExpect(jsonPath("$.ocrText").value("Existing OCR"))
+            .andExpect(jsonPath("$.profileId").doesNotExist()).andExpect(jsonPath("$.profileLabel").doesNotExist());
     }
     @Test void noDelegationAndDeletedImageFailClosed() throws Exception {
         when(delegation.patient(null,id)).thenThrow(PrescriptionException.unauthenticated());

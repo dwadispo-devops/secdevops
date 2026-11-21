@@ -54,4 +54,35 @@ class StoredReadingServiceTest {
         assertThatThrownBy(() -> service.read(UUID.randomUUID(),prescription.getId(),true)).isInstanceOf(PrescriptionException.class);
         verifyNoInteractions(reader);
     }
+
+    @Test void filtreHistoriquePourMoiEtPourUnProcheDuPatient() {
+        FamilyProfileRepository profiles = mock(FamilyProfileRepository.class);
+        FamilyProfile profile = new FamilyProfile(patient, "Maman");
+        Prescription relativePrescription = new Prescription(patient, DetectedFileType.PNG, 4, profile);
+        when(repository.findAllByPatientIdAndFamilyProfileIsNullOrderByCreatedAtDesc(patient)).thenReturn(List.of(prescription));
+        when(repository.findAllByPatientIdAndFamilyProfileIdOrderByCreatedAtDesc(patient, profile.getId()))
+                .thenReturn(List.of(relativePrescription));
+        when(profiles.findByIdAndPatientId(profile.getId(), patient)).thenReturn(Optional.of(profile));
+        StoredReadingService filtered = new StoredReadingService(repository, storage, reader, encryption, mapper, profiles);
+
+        var mine = filtered.history(patient, "me");
+        var relative = filtered.history(patient, profile.getId().toString());
+
+        assertThat(mine).hasSize(1);
+        assertThat(mine.getFirst().profileId()).isNull();
+        assertThat(relative).hasSize(1);
+        assertThat(relative.getFirst().profileId()).isEqualTo(profile.getId());
+        assertThat(relative.getFirst().profileLabel()).isEqualTo("Maman");
+    }
+
+    @Test void filtreHistoriqueMasqueUnProfilDUnAutrePatient() {
+        FamilyProfileRepository profiles = mock(FamilyProfileRepository.class);
+        UUID foreignProfileId = UUID.randomUUID();
+        when(profiles.findByIdAndPatientId(foreignProfileId, patient)).thenReturn(Optional.empty());
+        StoredReadingService filtered = new StoredReadingService(repository, storage, reader, encryption, mapper, profiles);
+        assertThatThrownBy(() -> filtered.history(patient, foreignProfileId.toString()))
+                .isInstanceOf(PrescriptionException.class)
+                .hasFieldOrPropertyWithValue("code", "PROFILE_NOT_FOUND");
+        verify(repository, never()).findAllByPatientIdAndFamilyProfileIdOrderByCreatedAtDesc(any(), any());
+    }
 }

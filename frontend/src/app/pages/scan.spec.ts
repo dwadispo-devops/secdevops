@@ -3,6 +3,7 @@ import { OrdonnanceService } from '../services/ordonnance';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ScanPage } from './scan';
+import { FamilyProfile } from '../services/prescription.service';
 
 /** Simule le choix d'un fichier dans un <input type="file">. */
 function fileEvent(file: File): Event {
@@ -105,6 +106,14 @@ describe('ScanPage (US06)', () => {
     expect(element('.success')?.textContent).toContain('Ordonnance envoyée');
     expect(element('.success')?.textContent).toContain('abc-123');
     expect(sessionStorage.getItem('last_prescription_id')).toBe('abc-123');
+  });
+
+  it('permet de choisir un profil proche avant le scan', () => {
+    const profile: FamilyProfile = { id: 'profile-1', label: 'Maman', createdAt: '2026-11-19T10:00:00Z' };
+    page.profiles.set([profile]);
+    page.selectProfile({ target: { value: profile.id } } as unknown as Event);
+    expect(page.selectedProfileId()).toBe(profile.id);
+    expect(element('[data-testid="family-profile"]')?.textContent).toContain('Maman');
   });
 
   it('affiche un message clair si la session a expiré (401)', async () => {

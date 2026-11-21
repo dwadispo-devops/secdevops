@@ -1,11 +1,16 @@
 :root {
-  --couleur-principale: #0f766e;
-  --couleur-fond: #f8fafc;
-  --couleur-texte: #0f172a;
+  --couleur-principale: #232323;
+  --couleur-fond: #faf6ee;
+  --couleur-texte: #2b2b2b;
   --couleur-carte: #ffffff;
-  --couleur-bordure: #e2e8f0;
+  --couleur-bordure: #e3d9c4;
   --hauteur-barre: 64px;
   --rayon: 12px;
+  --couleur-texte-2: #4a4a4a;
+  --couleur-or: #b89b5e;
+  --couleur-or-texte: #7a5f2e;
+  --couleur-bandeau: #232323;
+  --police-titre: Georgia, "Times New Roman", serif;
 }
 
 * { box-sizing: border-box; }
@@ -16,7 +21,7 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--couleur-fond);
   color: var(--couleur-texte);
-  line-height: 1.5;
+  line-height: 1.7;
 }
 
 .skip-link {
@@ -157,4 +162,95 @@ body {
   }
 
   .content { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+}
+
+/* Accueil : espace régulier entre les boutons d'action */
+.hero .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+h1, h2, h3 { font-family: var(--police-titre); font-weight: 500; }
+
+/* Boutons : style commun « Maison » (spécificité nulle, les pages gardent la main) */
+:where(button:not(.item):not(.bouton):not(.lien):not(.link):not(.request)) {
+  font: inherit;
+  cursor: pointer;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--couleur-bandeau);
+  border-radius: 2px;
+  background: #fff;
+  color: var(--couleur-bandeau);
+  letter-spacing: 0.02em;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+:where(button:not(.item):not(.bouton):not(.lien):not(.link):not(.request):hover:not(:disabled)) {
+  background: var(--couleur-bandeau);
+  color: #fff;
+}
+:where(button[type="submit"], button.primary, button.primaire) {
+  background: var(--couleur-bandeau);
+  color: #fff;
+}
+:where(button[type="submit"]:hover:not(:disabled), button.primary:hover:not(:disabled), button.primaire:hover:not(:disabled)) {
+  background: var(--couleur-or);
+  border-color: var(--couleur-or);
+  color: var(--couleur-bandeau);
+}
+:where(button:disabled) { opacity: 0.55; cursor: not-allowed; }
+:where(button, a.btn):focus-visible { outline: 2px solid var(--couleur-or); outline-offset: 2px; }
+.btn { border: 1px solid var(--couleur-bandeau); border-radius: 2px; }
+.btn:hover { background: var(--couleur-or); border-color: var(--couleur-or); color: var(--couleur-bandeau); filter: none; }
+.btn.secondaire { background: #fff; color: var(--couleur-bandeau); }
+.btn.secondaire:hover { background: var(--couleur-bandeau); border-color: var(--couleur-bandeau); color: #fff; }
+
+/* Fond vivant : lueurs champagne qui dérivent lentement */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60vmax 50vmax at 12% 10%, rgba(216, 190, 130, .45), transparent 60%),
+    radial-gradient(55vmax 45vmax at 90% 20%, rgba(184, 155, 94, .30), transparent 60%),
+    radial-gradient(50vmax 50vmax at 70% 95%, rgba(232, 213, 170, .55), transparent 60%),
+    radial-gradient(40vmax 40vmax at 5% 90%, rgba(122, 95, 46, .14), transparent 60%);
+  background-size: 140% 140%;
+  animation: maison-vie 28s ease-in-out infinite alternate;
+}
+@keyframes maison-vie {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body::before { animation: none; }
+}
+
+/* Détails : sélection et défilement */
+::selection { background: rgba(184, 155, 94, .35); color: #232323; }
+html { scrollbar-width: thin; scrollbar-color: #b89b5e transparent; }
+
+/* Boutons principaux : reflet doré au survol (placé après les règles de boutons) */
+:where(button[type="submit"], button.primary, button.primaire) {
+  background-image: linear-gradient(110deg, transparent 35%, rgba(216, 190, 130, .45) 50%, transparent 65%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  background-repeat: no-repeat;
+  transition: background-position .9s ease, background-color .2s, color .2s, border-color .2s;
+}
+:where(button[type="submit"]:hover:not(:disabled), button.primary:hover:not(:disabled), button.primaire:hover:not(:disabled)) {
+  background-position: -30% 0;
+}
+
+/* Entrée des pages en fondu */
+@keyframes maison-entree {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+router-outlet + * { animation: maison-entree .55s cubic-bezier(.2, .7, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  router-outlet + * { animation: none; }
+  :where(button[type="submit"], button.primary, button.primaire) { transition: none; }
 }

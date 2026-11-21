@@ -1,3 +1,4 @@
+
 package ma.medidispo.pharmacy_service.reservation;
 
 import ma.medidispo.pharmacy_service.security.JwtAuthenticationFilter;
@@ -14,15 +15,26 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableScheduling
 public class ReservationSecurityConfig {
-    @Bean @Order(-1)
+
+    @Bean
+    @Order(-1)
     SecurityFilterChain reservationChain(HttpSecurity http, JwtService jwt) throws Exception {
-        return http.securityMatcher("/api/availability-requests/*/reservations", "/api/availability-requests/*/reservation",
-                "/api/availability-requests/*/reservations/*/rating")
+        return http.securityMatcher(
+                "/api/availability-requests/*/reservations",
+                "/api/availability-requests/*/reservation",
+                "/api/availability-requests/*/reservations/*/rating",
+                "/api/availability-requests/*/reservations/*/cancel"
+            )
             .csrf(c -> c.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(e -> e.authenticationEntryPoint((q, r, x) -> r.sendError(401))
-                                     .accessDeniedHandler((q, r, x) -> r.sendError(403)))
+            .exceptionHandling(e -> e
+                    .authenticationEntryPoint((q, r, x) -> r.sendError(401))
+                    .accessDeniedHandler((q, r, x) -> r.sendError(403)))
             .authorizeHttpRequests(a -> a.anyRequest().hasRole("PATIENT"))
-            .addFilterBefore(new JwtAuthenticationFilter(jwt), UsernamePasswordAuthenticationFilter.class).build();
+            .addFilterBefore(
+                    new JwtAuthenticationFilter(jwt),
+                    UsernamePasswordAuthenticationFilter.class
+            )
+            .build();
     }
 }

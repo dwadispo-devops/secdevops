@@ -21,6 +21,10 @@ public class Prescription {
     @Column(name = "patient_id", nullable = false)
     private UUID patientId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "family_profile_id")
+    private FamilyProfile familyProfile;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private PrescriptionStatus status;
@@ -58,6 +62,10 @@ public class Prescription {
     }
 
     public Prescription(UUID patientId, DetectedFileType fileType, long sizeBytes) {
+        this(patientId, fileType, sizeBytes, null);
+    }
+
+    public Prescription(UUID patientId, DetectedFileType fileType, long sizeBytes, FamilyProfile familyProfile) {
         Instant now = Instant.now();
         this.id = UUID.randomUUID();
         this.patientId = patientId;
@@ -66,6 +74,7 @@ public class Prescription {
         this.status = PrescriptionStatus.UPLOADED;
         this.consentGivenAt = now;
         this.createdAt = now;
+        this.familyProfile = familyProfile;
     }
 
     /** Vrai si cette ordonnance appartient à ce patient. */
@@ -96,6 +105,7 @@ public class Prescription {
 
     public UUID getId() { return id; }
     public UUID getPatientId() { return patientId; }
+    public FamilyProfile getFamilyProfile() { return familyProfile; }
     public PrescriptionStatus getStatus() { return status; }
     public DetectedFileType getFileType() { return fileType; }
     public long getSizeBytes() { return sizeBytes; }
