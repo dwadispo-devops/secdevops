@@ -33,8 +33,15 @@ import {
           <p>Cette référence sera reprise automatiquement dans votre demande de disponibilité.</p>
           <button type="button" class="primary" (click)="readStored(r.id)" [disabled]="loading()">{{ loading() ? 'Lecture en cours…' : 'Lire mon ordonnance et vérifier les médicaments' }}</button>
           @if (readingMessage()) { <p role="status">{{ readingMessage() }}</p> }
-          @if (readingFailed()) { <p><a href="/demande-disponibilite">Saisir mes médicaments à la main</a></p> }
-          <button type="button" (click)="restart()">Envoyer une autre ordonnance</button>
+          @if (readingFailed()) {
+            <!-- US26 / EF10 : la lecture a échoué, le patient choisit comment continuer -->
+            <div class="echec" data-testid="reading-failed">
+              <button type="button" class="primary" data-testid="retake" (click)="retake()">Reprendre la photo</button>
+              <button type="button" data-testid="manual-entry" (click)="manualEntry()">Saisir mes médicaments à la main</button>
+            </div>
+          } @else {
+            <button type="button" (click)="restart()">Envoyer une autre ordonnance</button>
+          }
         </section>
       } @else {
         <p>Prenez votre ordonnance en photo ou importez-la (JPG, PNG ou PDF, 5 Mo maximum).</p>
@@ -102,6 +109,10 @@ import {
 
       @if (error()) {
         <p class="error" role="alert">{{ error() }}</p>
+        @if (serverDown()) {
+          <!-- ENF07 : même si le service ne répond pas, le patient peut continuer à la main -->
+          <p><button type="button" data-testid="manual-entry-error" (click)="manualEntry()">Saisir mes médicaments à la main</button></p>
+        }
       }
     </main>
   `,
@@ -123,6 +134,7 @@ import {
     .primary { width: 100%; padding: 14px; font-size: 1rem; background: var(--couleur-bandeau); color: #fff; border: none; border-radius: 6px; }
     .success { padding: 20px; border-radius: 8px; background: #f3ecdb; }
     .error { color: #b00020; font-weight: 600; }
+    .echec { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
   `],
 })
 export class ScanPage implements OnDestroy, OnInit {
@@ -140,6 +152,8 @@ export class ScanPage implements OnDestroy, OnInit {
   readonly readingMessage = signal('');
   /** EF10 / ENF07 : la lecture a échoué, on propose la saisie manuelle. */
   readonly readingFailed = signal(false);
+  /** ENF07 : l'envoi a échoué côté serveur (service injoignable ou en erreur). */
+  readonly serverDown = signal(false);
   readonly profiles = signal<FamilyProfile[]>([]);
   readonly selectedProfileId = signal<string | null>(null);
 
@@ -177,6 +191,17 @@ export class ScanPage implements OnDestroy, OnInit {
         this.echec('Lecture IA indisponible. Aucun résultat n’a été inventé ; vous pouvez saisir vos médicaments à la main.');
       },
     });
+  }
+
+  /** US26 : recommence la prise de photo (le fichier précédent est oublié). */
+  retake(): void {
+    this.restart();
+  }
+
+  /** US26 : saisie manuelle des médicaments, toujours dans le catalogue officiel (RG02). */
+  manualEntry(): void {
+    this.ordonnance.vider();
+    this.router.navigateByUrl('/verification').catch(() => undefined);
   }
 
   private echec(message: string): void {
@@ -238,6 +263,7 @@ export class ScanPage implements OnDestroy, OnInit {
 
     this.loading.set(true);
     this.error.set('');
+    this.serverDown.set(false);
 
     this.prescriptionService.upload(file, true, token, this.selectedProfileId()).subscribe({
       next: response => {
@@ -249,6 +275,7 @@ export class ScanPage implements OnDestroy, OnInit {
       },
       error: (error: HttpErrorResponse) => {
         this.loading.set(false);
+        this.serverDown.set(error.status === 0 || error.status >= 500);
         this.error.set(this.errorMessage(error));
       },
     });
@@ -266,6 +293,7 @@ export class ScanPage implements OnDestroy, OnInit {
     this.clear();
     this.result.set(null);
     this.error.set('');
+    this.serverDown.set(false);
   }
 
   formatSize(bytes: number): string {
