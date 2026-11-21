@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { LoginPage, safeReturnUrl } from './login';
 
 describe('LoginPage (US02)', () => {
@@ -54,6 +54,19 @@ describe('LoginPage (US02)', () => {
     expect(sessionStorage.getItem('access_token')).toBe('jwt-acces');
     expect(sessionStorage.getItem('refresh_token')).toBe('jwt-refresh');
     expect(page.password).toBe('');
+  });
+
+  it('redirige un ADMIN vers l’écran de validation après connexion', () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    page.email = 'admin@test.invalid';
+    page.password = 'AdminPass123';
+    page.login();
+    http.expectOne('/api/auth/login').flush({ accessToken: 'admin-jwt' });
+    http.expectOne('/api/auth/me').flush({
+      id: 'admin-1', email: 'admin@test.invalid', firstName: 'Admin', lastName: 'Test',
+      role: 'ADMIN', createdAt: '2026-11-21T00:00:00Z',
+    });
+    expect(navigate).toHaveBeenCalledWith('/admin/pharmacies');
   });
 
   it('affiche un message clair si les identifiants sont faux', () => {

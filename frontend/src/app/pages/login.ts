@@ -79,6 +79,8 @@ export class LoginPage {
                 ? '/pharmacien/demandes'
                 : profile.role === 'PATIENT'
                   ? '/scan'
+                : profile.role === 'ADMIN'
+                  ? '/admin/pharmacies'
                   : '/';
 
             void this.router.navigateByUrl(destination);
