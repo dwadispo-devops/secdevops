@@ -128,6 +128,10 @@ describe('US12 : rendu du suivi et expiration', () => {
     http.expectOne(`${url}/responses`).flush([reponse('ph1', 'AVAILABLE', 128.5)]);
     reservationResponse(res);
     fixture.detectChanges();
+    if (res?.status === 'RETIREE') {
+      http.expectOne(`${url}/reservations/${res.id}/rating`).flush(null, { status: 204, statusText: 'No Content' });
+      fixture.detectChanges();
+    }
   }
   beforeEach(() => {
     vi.useFakeTimers();
@@ -170,6 +174,7 @@ describe('US12 : rendu du suivi et expiration', () => {
   it('restaure le QR depuis le serveur à l’ouverture directe du suivi', () => {
     start(active());
     expect(fixture.nativeElement.querySelector('app-reservation-qr svg')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-pharmacy-rating')).toBeNull();
   });
 
   it('masque le QR à l’échéance locale sans attendre une réponse réseau', () => {
@@ -188,6 +193,8 @@ describe('US12 : rendu du suivi et expiration', () => {
     start(active({ status }));
     expect(fixture.nativeElement.querySelector('app-reservation-qr')).toBeNull();
     expect(fixture.nativeElement.querySelector('.code')).toBeNull();
+    expect(fixture.nativeElement.querySelector('app-pharmacy-rating') !== null).toBe(status === 'RETIREE');
+    expect(fixture.nativeElement.querySelector('app-pharmacy-rating fieldset') !== null).toBe(status === 'RETIREE');
   });
 
   it('retire le QR quand le serveur signale un retrait lors du rafraîchissement', () => {
@@ -196,8 +203,11 @@ describe('US12 : rendu du suivi et expiration', () => {
     http.expectOne(`${url}/responses`).flush([]);
     reservationResponse(active({ status: 'RETIREE' }));
     fixture.detectChanges();
+    http.expectOne(`${url}/reservations/r1/rating`).flush(null, { status: 204, statusText: 'No Content' });
+    fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-reservation-qr')).toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Médicaments retirés');
+    expect(fixture.nativeElement.querySelector('app-pharmacy-rating fieldset')).not.toBeNull();
   });
 
   it.each([0, 500, 401, 403])('signale une erreur de consultation %s puis permet la récupération', status => {
