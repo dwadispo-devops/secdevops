@@ -1,0 +1,160 @@
+<main class="dashboard">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">ESPACE PROFESSIONNEL</span>
+      <h1>Tableau de bord</h1>
+      <p class="intro">Bienvenue dans votre espace de gestion. Retrouvez ici l'activité de votre pharmacie.</p>
+    </div>
+    <button class="refresh-btn" type="button" (click)="reload()" [disabled]="loading()">
+      ↻ {{ loading() ? 'Actualisation…' : 'Actualiser' }}
+    </button>
+  </header>
+
+  <nav class="quick-links" aria-label="Navigation pharmacien">
+    <a routerLink="/pharmacien/demandes"><span>▤</span> Demandes reçues</a>
+    <a routerLink="/pharmacien/stock"><span>＋</span> Mon stock</a>
+    <a routerLink="/pharmacien/gardes"><span>◷</span> Mes gardes</a>
+  </nav>
+
+  @if (error()) {
+    <div class="alert error" role="alert">{{ error() }}</div>
+  }
+
+  @if (loading() && !dashboard()) {
+    <div class="loading-state">Chargement de votre tableau de bord…</div>
+  }
+
+  @if (dashboard(); as d) {
+    <section class="section-block">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">VUE D'ENSEMBLE</span>
+          <h2>Activité des demandes</h2>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <article class="metric">
+          <div class="metric-top">
+            <span class="metric-label">Demandes reçues</span>
+            <span class="metric-icon">▤</span>
+          </div>
+          <strong>{{ d.totalRequests }}</strong>
+          <small>Total des demandes attribuées</small>
+        </article>
+
+        <article class="metric waiting">
+          <div class="metric-top">
+            <span class="metric-label">En attente</span>
+            <span class="metric-icon">◷</span>
+          </div>
+          <strong>{{ d.pendingRequests }}</strong>
+          <small>Demandes à traiter</small>
+        </article>
+
+        <article class="metric completed">
+          <div class="metric-top">
+            <span class="metric-label">Demandes traitées</span>
+            <span class="metric-icon">✓</span>
+          </div>
+          <strong>{{ d.respondedRequests }}</strong>
+          <small>Réponses envoyées</small>
+        </article>
+
+        <article class="metric rate">
+          <div class="metric-top">
+            <span class="metric-label">Taux de réponse</span>
+            <span class="metric-icon">%</span>
+          </div>
+          <strong>{{ d.responseRate | number:'1.0-1' }} %</strong>
+          <small>Demandes traitées / reçues</small>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-block">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">SUIVI DES RÉSERVATIONS</span>
+          <h2>Activité des réservations</h2>
+        </div>
+      </div>
+
+      <div class="reservation-summary">
+        <article>
+          <span class="summary-icon">▣</span>
+          <div>
+            <span>Total des réservations</span>
+            <strong>{{ d.totalReservations }}</strong>
+          </div>
+        </article>
+        <article>
+          <span class="summary-icon active-icon">●</span>
+          <div>
+            <span>Réservations actives</span>
+            <strong>{{ d.activeReservations }}</strong>
+          </div>
+        </article>
+        <article>
+          <span class="summary-icon picked-icon">✓</span>
+          <div>
+            <span>Retraits effectués</span>
+            <strong>{{ d.pickedUpReservations }}</strong>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="recent">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">DERNIÈRES ACTIVITÉS</span>
+          <h2>Réservations récentes</h2>
+          <p>Les cinq réservations les plus récentes de vos pharmacies.</p>
+        </div>
+        <a routerLink="/pharmacien/demandes" class="text-link">Voir les demandes →</a>
+      </div>
+
+      @if (d.recentReservations.length) {
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Pharmacie</th>
+                <th>Référence demande</th>
+                <th>Date</th>
+                <th>Prix</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of d.recentReservations; track r.id) {
+                <tr>
+                  <td class="pharmacy-name">{{ r.pharmacyName }}</td>
+                  <td class="reference">{{ r.requestId }}</td>
+                  <td>{{ r.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                  <td class="price">{{ r.price | number:'1.2-2' }} DH</td>
+                  <td>
+                    <span class="status"
+                      [class.active]="r.status === 'ACTIVE'"
+                      [class.picked]="r.status === 'RETIREE'"
+                      [class.cancelled]="r.status === 'ANNULEE'"
+                      [class.expired]="r.status === 'EXPIREE'">
+                      {{ label(r.status) }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="empty-state">
+          <span>▤</span>
+          <strong>Aucune réservation pour le moment</strong>
+          <p>Les nouvelles réservations apparaîtront ici.</p>
+        </div>
+      }
+    </section>
+  }
+</main>

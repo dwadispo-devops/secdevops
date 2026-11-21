@@ -98,6 +98,38 @@ public class ReservationRepository {
             MAPPER, patient, request).stream().findFirst();
     }
 
+    /** Annule atomiquement une réservation active et encore valide pour son patient. */
+    public Optional<Reservation> cancel(UUID patient, UUID request, UUID reservationId) {
+        String sql = """
+            WITH annulee AS (
+                UPDATE reservations
+                SET status = 'ANNULEE'
+                WHERE id = ?
+                  AND request_id = ?
+                  AND patient_id = ?
+                  AND status = 'ACTIVE'
+                  AND expires_at > now()
+                RETURNING id, request_id, pharmacy_id, pickup_code, status, price, created_at, expires_at
+            )
+            SELECT a.id, a.request_id, a.pharmacy_id, p.name AS pharmacy_name, a.pickup_code,
+                   a.status, a.price, a.created_at, a.expires_at
+            FROM annulee a
+            JOIN pharmacies p ON p.id = a.pharmacy_id
+            """;
+        return jdbc.query(sql, MAPPER, reservationId, request, patient).stream().findFirst();
+    }
+
+    /** Vérifie uniquement les trois identifiants métier, sans exposer cette information à l'appelant. */
+    public boolean belongsToPatientAndRequest(UUID reservationId, UUID request, UUID patient) {
+        Boolean belongs = jdbc.queryForObject("""
+            SELECT EXISTS (
+                SELECT 1 FROM reservations
+                WHERE id = ? AND request_id = ? AND patient_id = ?
+            )
+            """, Boolean.class, reservationId, request, patient);
+        return Boolean.TRUE.equals(belongs);
+    }
+
     /**
      * Recherche d'une réservation active pour une pharmacie et un code donnés (US13).
      * Vérifie en SQL que la pharmacie appartient au pharmacien connecté (p.owner_user_id = ?).

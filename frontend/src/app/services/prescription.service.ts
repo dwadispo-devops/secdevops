@@ -13,6 +13,18 @@ export interface ReadPrescriptionResponse {
   durationMs: number;
 }
 
+export interface PrescriptionHistoryItem {
+  id: string;
+  status: string;
+  fileType: string;
+  createdAt: string;
+  imageAvailable: boolean;
+  profileId: string | null;
+  profileLabel: string | null;
+}
+
+export interface FamilyProfile { id: string; label: string; createdAt: string; }
+
 /** Réponse de POST /api/v1/prescriptions (US06). */
 export interface PrescriptionUploadResponse {
   id: string;
@@ -39,6 +51,28 @@ export class PrescriptionService {
 
   private readonly apiUrl = '/api/v1/prescriptions';
 
+  history(token: string, profile = 'all'): Observable<PrescriptionHistoryItem[]> {
+    return this.http.get<PrescriptionHistoryItem[]>(`${this.apiUrl}?profile=${encodeURIComponent(profile)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
+  familyProfiles(token: string): Observable<FamilyProfile[]> {
+    return this.http.get<FamilyProfile[]>(`${this.apiUrl}/profiles`, { headers: { Authorization: `Bearer ${token}` } });
+  }
+
+  createFamilyProfile(label: string, token: string): Observable<FamilyProfile> {
+    return this.http.post<FamilyProfile>(`${this.apiUrl}/profiles`, { label }, { headers: { Authorization: `Bearer ${token}` } });
+  }
+
+  renameFamilyProfile(id: string, label: string, token: string): Observable<FamilyProfile> {
+    return this.http.patch<FamilyProfile>(`${this.apiUrl}/profiles/${encodeURIComponent(id)}`, { label }, { headers: { Authorization: `Bearer ${token}` } });
+  }
+
+  deleteFamilyProfile(id: string, token: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/profiles/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${token}` } });
+  }
+
   readStored(id: string, token: string): Observable<ReadPrescriptionResponse> {
     return this.http.post<ReadPrescriptionResponse>(`${this.apiUrl}/${encodeURIComponent(id)}/read?consent=true`, null, {
       headers: { Authorization: `Bearer ${token}` },
@@ -46,10 +80,11 @@ export class PrescriptionService {
   }
 
   /** Envoie l'ordonnance (multipart : file + consent) avec le jeton du patient. */
-  upload(file: File, consent: boolean, token: string): Observable<PrescriptionUploadResponse> {
+  upload(file: File, consent: boolean, token: string, profileId: string | null = null): Observable<PrescriptionUploadResponse> {
     const form = new FormData();
     form.append('file', file, file.name);
     form.append('consent', String(consent));
+    if (profileId) form.append('profileId', profileId);
 
     return this.http.post<PrescriptionUploadResponse>(this.apiUrl, form, {
       headers: { Authorization: `Bearer ${token}` },

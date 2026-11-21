@@ -7,7 +7,7 @@ export interface PointCarte { id: string; lat: number; lng: number; couleur: str
 @Component({
   selector: 'app-carte-pharmacies',
   template: `<div #conteneur class="carte" role="img" aria-label="Carte des pharmacies"></div>`,
-  styles: [`.carte { height: 420px; width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid #e3e3e3; }`],
+  styles: [`.carte { height: 420px; width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--couleur-bordure); }`],
 })
 export class CartePharmaciesComponent implements AfterViewInit, OnDestroy {
   readonly points = input<PointCarte[]>([]);
@@ -51,7 +51,7 @@ export class CartePharmaciesComponent implements AfterViewInit, OnDestroy {
     }
     this.position?.remove();
     if (centre) {
-      this.position = L.circleMarker([centre.lat, centre.lng], { radius: 9, color: '#ffffff', weight: 3, fillColor: '#2878e8', fillOpacity: 1 })
+      this.position = L.circleMarker([centre.lat, centre.lng], { radius: 9, color: '#232323', weight: 4, fillColor: '#faf6ee', fillOpacity: 1 })
         .bindPopup('Votre position').addTo(this.map);
     }
   }

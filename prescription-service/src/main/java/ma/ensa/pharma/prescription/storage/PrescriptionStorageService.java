@@ -23,20 +23,36 @@ public class PrescriptionStorageService {
     private final PrescriptionImageRepository imageRepository;
     private final FileValidator fileValidator;
     private final ImageEncryptionService encryptionService;
+    private final FamilyProfileRepository familyProfiles;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public PrescriptionStorageService(PrescriptionRepository prescriptionRepository,
+                                      PrescriptionImageRepository imageRepository,
+                                      FileValidator fileValidator,
+                                      ImageEncryptionService encryptionService,
+                                      FamilyProfileRepository familyProfiles) {
+        this.prescriptionRepository = prescriptionRepository;
+        this.imageRepository = imageRepository;
+        this.fileValidator = fileValidator;
+        this.encryptionService = encryptionService;
+        this.familyProfiles = familyProfiles;
+    }
 
     public PrescriptionStorageService(PrescriptionRepository prescriptionRepository,
                                       PrescriptionImageRepository imageRepository,
                                       FileValidator fileValidator,
                                       ImageEncryptionService encryptionService) {
-        this.prescriptionRepository = prescriptionRepository;
-        this.imageRepository = imageRepository;
-        this.fileValidator = fileValidator;
-        this.encryptionService = encryptionService;
+        this(prescriptionRepository, imageRepository, fileValidator, encryptionService, null);
     }
 
     /** Enregistre l'ordonnance et son image chiffrée. Tout ou rien (@Transactional). */
     @Transactional
     public Prescription store(UUID patientId, byte[] content, String originalFilename, boolean consent) {
+        return store(patientId, content, originalFilename, consent, null);
+    }
+
+    @Transactional
+    public Prescription store(UUID patientId, byte[] content, String originalFilename, boolean consent, UUID profileId) {
         // 1. RG06 : consentement obligatoire
         if (!consent) {
             throw PrescriptionException.consentRequired();
@@ -46,7 +62,13 @@ public class PrescriptionStorageService {
         DetectedFileType type = fileValidator.validate(content, originalFilename);
 
         // 3. Enregistrer l'ordonnance (statut UPLOADED)
-        Prescription prescription = prescriptionRepository.save(new Prescription(patientId, type, content.length));
+        FamilyProfile profile = null;
+        if (profileId != null) {
+            if (familyProfiles == null) throw PrescriptionException.profileNotFound();
+            profile = familyProfiles.findByIdAndPatientIdAndDeletedAtIsNull(profileId, patientId)
+                    .orElseThrow(PrescriptionException::profileNotFound);
+        }
+        Prescription prescription = prescriptionRepository.save(new Prescription(patientId, type, content.length, profile));
 
         // 4. Chiffrer puis enregistrer l'image
         ImageEncryptionService.EncryptedData encrypted = encryptionService.encrypt(content);
