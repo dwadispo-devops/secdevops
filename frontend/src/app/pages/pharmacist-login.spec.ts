@@ -73,4 +73,20 @@ describe('Pharmacist login', () => {
     expect(sessionStorage.getItem('access_token')).toBeNull();
     expect(page.error()).toContain('incorrects');
   });
+
+  it('refuse un compte ADMIN dans le formulaire réservé aux pharmaciens', () => {
+    const page = TestBed.createComponent(PharmacistLoginPage).componentInstance;
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    page.email = 'admin@example.invalid';
+    page.password = 'Synthetic1';
+    page.login();
+    http.expectOne('/api/auth/login').flush({ accessToken: 'admin-token' });
+    http.expectOne('/api/auth/me').flush({
+      id: 'admin-1', email: 'admin@example.invalid', firstName: 'Admin', lastName: 'Test',
+      role: 'ADMIN', createdAt: '2026-11-21T00:00:00Z',
+    });
+    expect(sessionStorage.getItem('access_token')).toBeNull();
+    expect(page.error()).toContain('accès pharmacien');
+    expect(navigate).not.toHaveBeenCalled();
+  });
 });

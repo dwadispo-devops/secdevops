@@ -26,6 +26,10 @@
       <a routerLink="/pharmacien/gardes" routerLinkActive="active">Mes gardes</a>
     }
 
+    @if (connected() && profile()?.role === 'ADMIN') {
+      <a routerLink="/admin/pharmacies" routerLinkActive="active">Valider les pharmacies</a>
+    }
+
     @if (connected()) {
       <a routerLink="/profil" routerLinkActive="active">Mon profil</a>
       <a routerLink="/alertes" routerLinkActive="active">Mes alertes</a>

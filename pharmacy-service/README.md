@@ -498,3 +498,24 @@ docker compose --profile outils up -d kafka-ui
 docker compose exec -T kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 --describe --group notifications
 ```
+
+## Administration des pharmacies (US21, EF06)
+
+| Méthode | Chemin | Rôle | Réponses |
+|---|---|---|---|
+| `GET` | `/api/pharmacies/admin/pending` | `ADMIN` | `200`, `401`, `403` |
+| `POST` | `/api/pharmacies/admin/{id}/validate` | `ADMIN` | `200`, `400` si l’identifiant est mal formé, `401`, `403`, `404`, `409` |
+
+La liste contient au plus 100 pharmacies au statut `PENDING`, ordonnées par date d’inscription, avec seulement `id`, `name`, `address`, `licenseNumber` et `createdAt`. La validation passe la pharmacie à `APPROVED` par une mise à jour atomique conditionnée par `status = 'PENDING'`. Une pharmacie inconnue renvoie `404`; une pharmacie existante qui n’est plus en attente renvoie `409`. Les pharmacies OSM `UNVERIFIED` ne sont pas modifiées.
+
+Cette fonctionnalité ne rejette pas les inscriptions et n’envoie pas de notification. Elle ne conserve pas l’identité de l’administrateur ni une date de validation. Les opérations de stock, de gardes et de réponse d’un pharmacien propriétaire d’une pharmacie `PENDING` ne sont pas modifiées.
+
+### Compte administrateur de démonstration
+
+Créer d’abord un compte par le parcours habituel, puis promouvoir ce compte depuis la base d’authentification `auth-service` avec un accès administrateur à PostgreSQL :
+
+```sql
+UPDATE users SET role = 'ADMIN' WHERE email = '<EMAIL_DE_DEMO>';
+```
+
+Utiliser l’adresse du compte de démonstration à la place du marqueur. Le compte doit se déconnecter puis se reconnecter pour obtenir un jeton portant le rôle `ADMIN`. Aucun mot de passe ni secret n’est requis dans le dépôt.

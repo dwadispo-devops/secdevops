@@ -37,6 +37,10 @@ function checkAccess(
         return router.createUrlTree(['/scan']);
       }
 
+      if (profile.role === 'ADMIN') {
+        return router.createUrlTree(['/admin/pharmacies']);
+      }
+
       return router.createUrlTree(['/']);
     }),
     catchError(() => {

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PharmacyRepository extends JpaRepository<Pharmacy, UUID> {
@@ -21,6 +22,15 @@ public interface PharmacyRepository extends JpaRepository<Pharmacy, UUID> {
     }
 
     boolean existsByOsmId(Long osmId);
+
+    @Query("""
+        SELECT p FROM Pharmacy p
+        WHERE p.id = :id
+          AND (p.ownerUserId = :owner
+               OR p.status = 'APPROVED'
+               OR (p.source = 'OSM' AND p.status = 'UNVERIFIED'))
+        """)
+    Optional<Pharmacy> findVisibleById(@Param("id") UUID id, @Param("owner") UUID owner);
 
     @Query(value = """
         SELECT p.id AS id,

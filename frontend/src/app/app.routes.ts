@@ -127,6 +127,12 @@ export const routes: Routes = [
     title: 'Mon stock – DwaDispo',
     loadComponent: () => import('./pages/pharmacist-stock').then(m => m.PharmacistStockPage),
   },
+  {
+    path: 'admin/pharmacies',
+    canActivate: [roleGuard('ADMIN')],
+    title: 'Valider les pharmacies – DwaDispo',
+    loadComponent: () => import('./pages/admin-pharmacies').then(m => m.AdminPharmaciesPage),
+  },
 
   // Accessible à tout utilisateur connecté
   {
