@@ -1,0 +1,33 @@
+{
+  "file": "ordo_06_gastro.png",
+  "category": "formes variées",
+  "description": "Comprimés, sachets et suspension sur la même ordonnance",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Inexium",
+      "dosage": "40 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Motilium",
+      "dosage": "10 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Gaviscon",
+      "dosage": "",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Smecta",
+      "dosage": "3 g",
+      "quantity": 2,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

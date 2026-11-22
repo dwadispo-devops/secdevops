@@ -1,0 +1,21 @@
+{
+  "file": "ordo_19_photo_sombre.png",
+  "category": "qualité d'image",
+  "description": "Photo sous-exposée (pièce mal éclairée) et légère déformation",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Bactrim",
+      "dosage": "800/160 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Orelox",
+      "dosage": "100 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

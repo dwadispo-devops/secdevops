@@ -107,8 +107,8 @@ mvn spring-boot:run          # port 8085
 
 ```bash
 mvn verify                                  # tests + couverture JaCoCo (target/site/jacoco)
-python3 scripts/generate_sample_prescriptions.py samples
-python3 scripts/evaluate_poc.py http://localhost:8085 samples
+python3 scripts/generate_sample_prescriptions.py samples   # jeu de 20 documents de test (TS06)
+python3 scripts/evaluate_poc.py http://localhost:8085 samples   # mesure + rapport dans reports/
 ```
 
 Les tests n'appellent ni Gemini ni le vrai catalogue : le modèle est simulé (Mockito) et medication-service
@@ -118,6 +118,45 @@ les cas ambigus, les lignes illisibles, la panne du catalogue et le fait qu'aucu
 
 Le script d'évaluation affiche, pour chaque ordonnance fictive, le texte lu, la couleur et le score de chaque
 ligne, puis le taux de reconnaissance global (objectif ENF03 : ≥ 80 %).
+
+## Qualité de lecture sur 20 ordonnances de test (TS06)
+
+Livrable du Sprint 4 : **rapport de qualité de lecture de l'IA** →
+[`reports/ts06-rapport-qualite-lecture.md`](reports/ts06-rapport-qualite-lecture.md)
+(résultats bruts : `reports/ts06-resultats.json`). Le rapport est **produit par le script**, à partir d'une
+vraie mesure : il se relance à chaque évolution de la lecture (prompt, modèle, score).
+
+**Jeu de test** (`samples/`, généré par `scripts/generate_sample_prescriptions.py`, données 100 % fictives) :
+
+| Documents | Cas testé |
+|---|---|
+| 01, 13 | ordonnances simples et longues (3 et 5 médicaments) |
+| 02, 20 | pédiatrie : sirops, gouttes, pourcentages |
+| 04, 14 | quantités « QSP 3 mois » et nombre de boîtes en toutes lettres |
+| 05, 06 | abréviations (cp, bte, U) et formes variées (comprimés, sachets, suspension) |
+| 07, 08 | polices à empattement et « machine à écrire », dosage en µg |
+| 09, 10, 19 | photos floue et inclinée, peu contrastée + JPEG compressé, sombre et déformée |
+| 11, 16 | cachet du médecin sur le texte, ordonnance en deux colonnes |
+| 03, 12 | injection de prompt (français, anglais) : aucun produit inventé ne doit être proposé |
+| 15, 18, (02) | prescription en DCI et produits absents du catalogue : jamais validés automatiquement |
+| 17 | facture de pharmacie : doit être signalée comme « pas une ordonnance » |
+
+Chaque fichier `*.expected.json` décrit le résultat attendu (nom, dosage, nombre de boîtes, présence dans le
+catalogue, mots interdits). Les documents 01 à 03 sont ceux du Sprint 1, conservés pour comparer les sprints.
+
+**Indicateurs calculés** : médicaments reconnus dans le catalogue (ENF03, ≥ 80 %), produits inventés (O2, 0),
+injections suivies, bon dosage, reconnus directement en vert, quantités, hors catalogue non validés, détection
+des non-ordonnances, temps de lecture (ENF02, < 15 s). Le script s'arrête avec un code d'erreur si ENF03 ou
+« 0 produit inventé » ne sont pas atteints (utilisable plus tard dans un job CI manuel).
+
+```bash
+# Prérequis : medication-service (8083, catalogue importé) et prescription-service (8085) démarrés
+pip install requests pillow
+python scripts/evaluate_poc.py http://localhost:8085 samples --pause 2
+```
+
+`--pause` espace les appels pour rester dans le quota gratuit de l'API Gemini ; une réponse 503 (IA surchargée)
+est retentée une fois après 5 s.
 
 ## Structure
 
@@ -162,6 +201,8 @@ dosage invérifiable empêche le vert.
 
 - L'écran de vérification (US08) doit ajouter le champ `quantite` à son interface (déjà envoyé par ce service).
 - Bascule automatique Gemini → Ollama et OCR Tesseract : tickets à créer.
+- Si la lecture échoue, le patient peut reprendre la photo ou saisir ses médicaments à la main dans le catalogue
+  (US26, côté Angular : pages Scanner et Vérification).
 
 ---
 

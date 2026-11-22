@@ -1,0 +1,21 @@
+{
+  "file": "ordo_11_cachet_sur_texte.png",
+  "category": "mise en page",
+  "description": "Cachet du médecin qui chevauche une ligne de médicament",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Ospamox",
+      "dosage": "1 g",
+      "quantity": 2,
+      "inCatalogue": true
+    },
+    {
+      "name": "Atarax",
+      "dosage": "25 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

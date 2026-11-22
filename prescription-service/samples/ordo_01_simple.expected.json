@@ -1,21 +1,27 @@
 {
   "file": "ordo_01_simple.png",
+  "category": "simple",
+  "description": "3 médicaments courants, mise en page standard",
+  "isPrescription": true,
   "expectedMedications": [
     {
       "name": "Doliprane",
       "dosage": "1 g",
-      "quantity": 1
+      "quantity": 1,
+      "inCatalogue": true
     },
     {
       "name": "Augmentin",
       "dosage": "1 g/125 mg",
-      "quantity": 2
+      "quantity": 2,
+      "inCatalogue": true
     },
     {
       "name": "Spasfon",
       "dosage": "80 mg",
-      "quantity": 1
+      "quantity": 1,
+      "inCatalogue": true
     }
   ],
   "mustNotContain": []
-}
+}

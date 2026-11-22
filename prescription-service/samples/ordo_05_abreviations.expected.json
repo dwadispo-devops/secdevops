@@ -1,0 +1,27 @@
+{
+  "file": "ordo_05_abreviations.png",
+  "category": "abréviations",
+  "description": "Abréviations de médecin : cp, bte, U",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Aerius",
+      "dosage": "5 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Celestene",
+      "dosage": "2 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Maxilase",
+      "dosage": "3000 U",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}
