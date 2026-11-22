@@ -2,6 +2,7 @@ package ma.ensa.pharma.prescription.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ma.ensa.pharma.prescription.api.dto.ReadPrescriptionResponse;
+import ma.ensa.pharma.prescription.api.dto.PrescriptionHistoryResponse;
 import ma.ensa.pharma.prescription.exception.PrescriptionException;
 import ma.ensa.pharma.prescription.storage.*;
 import org.springframework.stereotype.Service;
@@ -17,13 +18,43 @@ public class StoredReadingService {
     private final PrescriptionReadingService reader;
     private final ImageEncryptionService encryption;
     private final ObjectMapper mapper;
+    private final FamilyProfileRepository familyProfiles;
+    @org.springframework.beans.factory.annotation.Autowired
+    public StoredReadingService(PrescriptionRepository repository, PrescriptionStorageService storage,
+                                PrescriptionReadingService reader, ImageEncryptionService encryption, ObjectMapper mapper,
+                                FamilyProfileRepository familyProfiles) {
+        this.repository=repository; this.storage=storage; this.reader=reader; this.encryption=encryption; this.mapper=mapper;
+        this.familyProfiles=familyProfiles;
+    }
     public StoredReadingService(PrescriptionRepository repository, PrescriptionStorageService storage,
                                 PrescriptionReadingService reader, ImageEncryptionService encryption, ObjectMapper mapper) {
-        this.repository=repository; this.storage=storage; this.reader=reader; this.encryption=encryption; this.mapper=mapper;
+        this(repository, storage, reader, encryption, mapper, null);
     }
     private Prescription owned(UUID patient, UUID id) {
         return repository.findById(id).filter(p -> p.belongsTo(patient)).orElseThrow(PrescriptionException::notFound);
     }
+    @Transactional(readOnly=true)
+    public List<PrescriptionHistoryResponse> history(UUID patient) {
+        return repository.findAllByPatientIdOrderByCreatedAtDesc(patient).stream()
+                .map(PrescriptionHistoryResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly=true)
+    public List<PrescriptionHistoryResponse> history(UUID patient, String profile) {
+        if (profile == null || profile.equals("all")) return history(patient);
+        if (profile.equals("me")) return repository.findAllByPatientIdAndFamilyProfileIsNullOrderByCreatedAtDesc(patient)
+                .stream().map(PrescriptionHistoryResponse::from).toList();
+        UUID profileId;
+        try { profileId = UUID.fromString(profile); }
+        catch (IllegalArgumentException ex) { throw PrescriptionException.invalidHistoryFilter(); }
+        if (familyProfiles == null) throw PrescriptionException.profileNotFound();
+        familyProfiles.findByIdAndPatientId(profileId, patient)
+                .orElseThrow(PrescriptionException::profileNotFound);
+        return repository.findAllByPatientIdAndFamilyProfileIdOrderByCreatedAtDesc(patient, profileId)
+                .stream().map(PrescriptionHistoryResponse::from).toList();
+    }
+
     @Transactional
     public ReadPrescriptionResponse read(UUID patient, UUID id, boolean consent) {
         if (!consent) throw PrescriptionException.consentRequired();

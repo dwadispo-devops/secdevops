@@ -1,8 +1,9 @@
-import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { OrdonnanceService } from '../services/ordonnance';
 import {
+  FamilyProfile,
   MAX_FILE_SIZE,
   PrescriptionService,
   PrescriptionUploadResponse,
@@ -38,9 +39,28 @@ import {
       } @else {
         <p>Prenez votre ordonnance en photo ou importez-la (JPG, PNG ou PDF, 5 Mo maximum).</p>
 
+        <label class="profile-choice">Cette ordonnance est pour
+          <select data-testid="family-profile" [value]="selectedProfileId() ?? ''" (change)="selectProfile($event)">
+            <option value="">Moi</option>
+            @for (profile of profiles(); track profile.id) { <option [value]="profile.id">{{ profile.label }}</option> }
+          </select>
+        </label>
+
         <div class="choices">
-          <button type="button" (click)="cameraInput.click()" [disabled]="busy()">📷 Prendre une photo</button>
-          <button type="button" (click)="fileInput.click()" [disabled]="busy()">📁 Importer un fichier</button>
+          <button type="button" (click)="cameraInput.click()" [disabled]="busy()">
+            <svg class="choice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M14 4H10L8.5 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.5L14 4Z"/>
+              <circle cx="12" cy="13" r="3.5"/>
+            </svg>
+            <span>Prendre une photo</span>
+          </button>
+          <button type="button" (click)="fileInput.click()" [disabled]="busy()">
+            <svg class="choice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+              <path d="M3 10h18"/>
+            </svg>
+            <span>Importer un fichier</span>
+          </button>
         </div>
 
         <!-- accept="image/*" : sur téléphone, propose "Appareil photo" ou "Galerie" ; sur PC, ouvre le sélecteur -->
@@ -87,24 +107,25 @@ import {
   `,
   styles: [`
     .container { max-width: 760px; margin: 40px auto; padding: 24px; }
-    h1 { color: #176b55; }
+    h1 { color: var(--couleur-bandeau); }
     .choices { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0; }
-    .choices button { flex: 1 1 200px; padding: 16px; font-size: 1rem; }
+    .choices button { flex: 1 1 200px; padding: 16px; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .choice-icon { width: 22px; height: 22px; flex: 0 0 22px; color: var(--couleur-or); }
     button { padding: 10px 16px; cursor: pointer; }
     button:disabled { cursor: not-allowed; opacity: 0.6; }
-    .preview { margin: 20px 0; padding: 16px; border: 1px solid #d0d7d4; border-radius: 8px; text-align: center; }
+    .preview { margin: 20px 0; padding: 16px; border: 1px solid var(--couleur-bordure); border-radius: 8px; text-align: center; }
     .preview img { max-width: 100%; max-height: 420px; border-radius: 4px; }
     .pdf { font-size: 1.2rem; }
     .meta { color: #555; font-size: 0.9rem; word-break: break-all; }
-    .link { background: none; border: none; color: #176b55; text-decoration: underline; }
+    .link { background: none; border: none; color: var(--couleur-or-texte); text-decoration: underline; }
     .consent { display: flex; gap: 10px; align-items: flex-start; margin: 20px 0; line-height: 1.4; }
     .consent input { margin-top: 4px; width: 20px; height: 20px; flex-shrink: 0; }
-    .primary { width: 100%; padding: 14px; font-size: 1rem; background: #176b55; color: #fff; border: none; border-radius: 6px; }
-    .success { padding: 20px; border-radius: 8px; background: #e8f5ef; }
+    .primary { width: 100%; padding: 14px; font-size: 1rem; background: var(--couleur-bandeau); color: #fff; border: none; border-radius: 6px; }
+    .success { padding: 20px; border-radius: 8px; background: #f3ecdb; }
     .error { color: #b00020; font-weight: 600; }
   `],
 })
-export class ScanPage implements OnDestroy {
+export class ScanPage implements OnDestroy, OnInit {
   private readonly prescriptionService = inject(PrescriptionService);
   private readonly ordonnance = inject(OrdonnanceService);
   private readonly router = inject(Router);
@@ -119,6 +140,17 @@ export class ScanPage implements OnDestroy {
   readonly readingMessage = signal('');
   /** EF10 / ENF07 : la lecture a échoué, on propose la saisie manuelle. */
   readonly readingFailed = signal(false);
+  readonly profiles = signal<FamilyProfile[]>([]);
+  readonly selectedProfileId = signal<string | null>(null);
+
+  ngOnInit(): void {
+    const token = sessionStorage.getItem('access_token');
+    if (token) this.prescriptionService.familyProfiles(token).subscribe({ next: p => this.profiles.set(p), error: () => undefined });
+  }
+
+  selectProfile(event: Event): void {
+    this.selectedProfileId.set((event.target as HTMLSelectElement).value || null);
+  }
 
   readStored(id: string): void {
     const token = sessionStorage.getItem('access_token');
@@ -207,7 +239,7 @@ export class ScanPage implements OnDestroy {
     this.loading.set(true);
     this.error.set('');
 
-    this.prescriptionService.upload(file, true, token).subscribe({
+    this.prescriptionService.upload(file, true, token, this.selectedProfileId()).subscribe({
       next: response => {
         this.loading.set(false);
         // Identifiant réutilisable par l'étape suivante (lecture IA, US07)

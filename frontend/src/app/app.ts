@@ -1,8 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { filter } from 'rxjs';
+import { Component, inject } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NotificationBellComponent } from './components/notification-bell';
+import { AuthService } from './services/auth.service';
 
 @Component({
   imports: [RouterOutlet, RouterLink, RouterLinkActive, NotificationBellComponent],
@@ -12,17 +11,21 @@ import { NotificationBellComponent } from './components/notification-bell';
 })
 export class App {
   private readonly router = inject(Router);
-  protected readonly title = signal('frontend');
-  protected readonly connected = signal(!!sessionStorage.getItem('access_token'));
+  private readonly auth = inject(AuthService);
+
+  protected readonly connected = this.auth.connected;
+  protected readonly profile = this.auth.profile;
 
   constructor() {
-    this.router.events.pipe(filter(e => e instanceof NavigationEnd), takeUntilDestroyed())
-      .subscribe(() => this.connected.set(!!sessionStorage.getItem('access_token')));
+    if (sessionStorage.getItem('access_token')) {
+      this.auth.loadProfile().subscribe({
+        error: () => this.auth.clearSession(),
+      });
+    }
   }
 
   protected logout() {
-    for (const key of ['access_token', 'refresh_token', 'last_prescription_id']) sessionStorage.removeItem(key);
-    this.connected.set(false);
+    this.auth.clearSession();
     void this.router.navigateByUrl('/');
   }
 }

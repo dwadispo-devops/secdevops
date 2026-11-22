@@ -7,12 +7,16 @@ import {
   inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import * as L from 'leaflet';
 
-import {
-  Pharmacy,
-  PharmacyService,
-} from '../services/pharmacy.service';
+import { Pharmacy, PharmacyService } from '../services/pharmacy.service';
+
+interface DisplayPharmacy extends Pharmacy {
+  isOnDuty: boolean;
+  dutyUntil?: string;
+}
 
 @Component({
   selector: 'app-pharmacies',
@@ -24,18 +28,10 @@ import {
         <div>
           <span class="eyebrow">DwaDispo · Localisation</span>
           <h1>Trouvez une pharmacie près de vous</h1>
-          <p>
-            Explorez les pharmacies autour de votre position
-            et trouvez facilement celle qui vous convient.
-          </p>
+          <p>Explorez les pharmacies autour de votre position et trouvez celle qui vous convient.</p>
         </div>
 
-        <button
-          class="location-button"
-          (click)="locateMe()"
-          type="button"
-          [disabled]="locating"
-        >
+        <button class="location-button" (click)="locateMe()" type="button" [disabled]="locating">
           <span>⌖</span>
           {{ locating ? 'Localisation...' : 'Me localiser' }}
         </button>
@@ -49,17 +45,32 @@ import {
           (input)="onSearchChange($event)"
           aria-label="Rechercher une pharmacie"
         />
-        <span class="result-count">
-          {{ filteredPharmacies.length }} pharmacie(s)
-        </span>
+        <span class="result-count">{{ filteredPharmacies.length }} pharmacie(s)</span>
+      </section>
+
+      <section class="pharmacy-filters" aria-label="Filtrer les pharmacies">
+        <button
+          type="button"
+          [class.active]="activeFilter === 'all'"
+          (click)="setFilter('all')"
+        >
+          Toutes les pharmacies
+        </button>
+        <button
+          type="button"
+          [class.active]="activeFilter === 'duty'"
+          (click)="setFilter('duty')"
+        >
+          De garde aujourd'hui
+        </button>
       </section>
 
       <section class="map-layout">
         <aside class="pharmacy-panel">
           <div class="panel-heading">
             <div>
-              <h2>Pharmacies proches</h2>
-              <p>Les établissements autour de vous</p>
+              <h2>{{ activeFilter === 'duty' ? 'Pharmacies de garde' : 'Pharmacies proches' }}</h2>
+              <p>{{ activeFilter === 'duty' ? 'Pharmacies signalées de garde aujourd’hui' : 'Les établissements autour de vous' }}</p>
             </div>
             <span class="count-badge">{{ filteredPharmacies.length }}</span>
           </div>
@@ -74,14 +85,16 @@ import {
               <div class="message-state error-state">
                 <span>!</span>
                 <p>{{ errorMessage }}</p>
-                <button type="button" (click)="loadPharmacies()">
-                  Réessayer
-                </button>
+                <button type="button" (click)="loadPharmacies()">Réessayer</button>
               </div>
             } @else if (filteredPharmacies.length === 0) {
               <div class="message-state">
                 <span>⌕</span>
-                <p>Aucune pharmacie trouvée.</p>
+                <p>
+                  {{ activeFilter === 'duty'
+                    ? 'Aucune pharmacie de garde trouvée parmi les pharmacies proches.'
+                    : 'Aucune pharmacie trouvée.' }}
+                </p>
               </div>
             } @else {
               @for (pharmacy of filteredPharmacies; track pharmacy.id) {
@@ -89,21 +102,20 @@ import {
                   type="button"
                   class="pharmacy-item"
                   [class.selected]="selectedPharmacy?.id === pharmacy.id"
+                  [class.on-duty]="pharmacy.isOnDuty"
                   (click)="selectPharmacy(pharmacy)"
                 >
                   <span class="pharmacy-icon">✚</span>
-
                   <span class="pharmacy-info">
                     <strong>{{ pharmacy.name }}</strong>
-                    <small>
-                      {{ pharmacy.address || 'Adresse non renseignée' }}
-                    </small>
+                    @if (pharmacy.isOnDuty) {
+                      <span class="duty-badge">De garde</span>
+                    }
+                    <small>{{ pharmacy.address || 'Adresse non renseignée' }}</small>
                     <small class="distance">
-                      {{ formatDistance(pharmacy.distanceM) }}
-                      de votre position
+                      {{ formatDistance(pharmacy.distanceM) }} de votre position
                     </small>
                   </span>
-
                   <span class="item-arrow">›</span>
                 </button>
               }
@@ -125,6 +137,8 @@ import {
           <div class="map-legend">
             <span class="legend-dot"></span>
             Pharmacie
+            <span class="legend-duty"></span>
+            De garde
             <span class="legend-user"></span>
             Votre position
           </div>
@@ -146,15 +160,15 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
   private mapContainer!: ElementRef<HTMLDivElement>;
 
   private readonly pharmacyService = inject(PharmacyService);
-
   private map?: L.Map;
   private markersLayer?: L.LayerGroup;
   private readonly markers = new Map<string, L.CircleMarker>();
 
-  pharmacies: Pharmacy[] = [];
-  filteredPharmacies: Pharmacy[] = [];
-  selectedPharmacy: Pharmacy | null = null;
+  pharmacies: DisplayPharmacy[] = [];
+  filteredPharmacies: DisplayPharmacy[] = [];
+  selectedPharmacy: DisplayPharmacy | null = null;
 
+  activeFilter: 'all' | 'duty' = 'all';
   loading = false;
   locating = false;
   errorMessage = '';
@@ -162,7 +176,6 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
 
   private latitude = 31.6258;
   private longitude = -7.9891;
-
   private userMarker?: L.CircleMarker;
 
   locationAccuracy: number | null = null;
@@ -191,27 +204,48 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
     this.loading = true;
     this.errorMessage = '';
 
-    this.pharmacyService
-      .getNearbyPharmacies(this.latitude, this.longitude, 5000)
-      .subscribe({
-        next: (data) => {
-          this.pharmacies = data;
-          this.applySearch();
-          this.displayMarkers();
-          this.loading = false;
-        },
-        error: (error) => {
-          console.error(
-            'Erreur de récupération des pharmacies :',
-            error,
-          );
+    forkJoin({
+      nearby: this.pharmacyService.getNearbyPharmacies(
+        this.latitude,
+        this.longitude,
+        5000,
+      ),
+      duty: this.pharmacyService
+        .getOnDutyPharmacies(this.latitude, this.longitude)
+        .pipe(
+          catchError((error) => {
+            console.error('Erreur de récupération des gardes :', error);
+            return of({ date: '', pharmacies: [] });
+          }),
+        ),
+    }).subscribe({
+      next: ({ nearby, duty }) => {
+        const dutyMap = new Map(
+          duty.pharmacies.map((pharmacy) => [pharmacy.id, pharmacy.dutyUntil]),
+        );
 
-          this.errorMessage =
-            'Impossible de récupérer les pharmacies. Vérifiez la connexion au serveur.';
+        const nearbyIds = new Set(nearby.map((pharmacy) => pharmacy.id));
+        const dutyOutsideNearby = duty.pharmacies.filter(
+          (pharmacy) => !nearbyIds.has(pharmacy.id),
+        );
 
-          this.loading = false;
-        },
-      });
+        this.pharmacies = [...nearby, ...dutyOutsideNearby].map((pharmacy) => ({
+          ...pharmacy,
+          distanceM: pharmacy.distanceM ?? 0,
+          isOnDuty: dutyMap.has(pharmacy.id),
+          dutyUntil: dutyMap.get(pharmacy.id),
+        }));
+
+        this.applyFilters();
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Erreur de récupération des pharmacies :', error);
+        this.errorMessage =
+          'Impossible de récupérer les pharmacies. Vérifiez la connexion au serveur.';
+        this.loading = false;
+      },
+    });
   }
 
   private displayMarkers(): void {
@@ -224,10 +258,10 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
       const marker = L.circleMarker(
         [pharmacy.latitude, pharmacy.longitude],
         {
-          radius: 8,
+          radius: pharmacy.isOnDuty ? 10 : 8,
           color: '#ffffff',
           weight: 2,
-          fillColor: '#079779',
+          fillColor: pharmacy.isOnDuty ? '#b89b5e' : '#232323',
           fillOpacity: 1,
         },
       );
@@ -238,10 +272,16 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
 
       name.textContent = pharmacy.name;
       distance.textContent = this.formatDistance(pharmacy.distanceM);
-
       popup.append(name, distance);
-      marker.bindPopup(popup);
 
+      if (pharmacy.isOnDuty) {
+        const badge = document.createElement('strong');
+        badge.textContent = 'De garde';
+        badge.style.color = '#7a5f2e';
+        popup.append(badge);
+      }
+
+      marker.bindPopup(popup);
       marker.addTo(this.markersLayer);
       this.markers.set(pharmacy.id, marker);
     }
@@ -249,19 +289,33 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
 
   onSearchChange(event: Event): void {
     this.searchTerm = (event.target as HTMLInputElement).value;
-    this.applySearch();
+    this.applyFilters();
+  }
+
+  setFilter(filter: 'all' | 'duty'): void {
+    this.activeFilter = filter;
+    this.selectedPharmacy = null;
+    this.applyFilters();
+  }
+
+  private applyFilters(): void {
+    const term = this.searchTerm.trim().toLowerCase();
+
+    this.filteredPharmacies = this.pharmacies.filter((pharmacy) => {
+      const matchesSearch =
+        pharmacy.name.toLowerCase().includes(term) ||
+        (pharmacy.address ?? '').toLowerCase().includes(term);
+
+      const matchesFilter =
+        this.activeFilter === 'all' || pharmacy.isOnDuty;
+
+      return matchesSearch && matchesFilter;
+    });
+
     this.displayMarkers();
   }
 
-  private applySearch(): void {
-    const term = this.searchTerm.trim().toLowerCase();
-
-    this.filteredPharmacies = this.pharmacies.filter((pharmacy) =>
-      pharmacy.name.toLowerCase().includes(term),
-    );
-  }
-
-  selectPharmacy(pharmacy: Pharmacy): void {
+  selectPharmacy(pharmacy: DisplayPharmacy): void {
     this.selectedPharmacy = pharmacy;
 
     this.map?.setView(
@@ -288,6 +342,7 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
         this.latitude = position.coords.latitude;
         this.longitude = position.coords.longitude;
         this.locationAccuracy = position.coords.accuracy;
+
         this.map?.setView(
           [this.latitude, this.longitude],
           16,
@@ -301,16 +356,14 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
             [this.latitude, this.longitude],
             {
               radius: 9,
-              color: '#ffffff',
-              weight: 3,
-              fillColor: '#2878e8',
+              color: '#232323',
+              weight: 4,
+              fillColor: '#faf6ee',
               fillOpacity: 1,
             },
           )
             .bindPopup(
-              `Votre position (précision : ${this.formatDistance(
-                this.locationAccuracy,
-              )})`,
+              `Votre position (précision : ${this.formatDistance(this.locationAccuracy)})`,
             )
             .addTo(this.map);
         }
@@ -318,7 +371,6 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
         this.locating = false;
         this.loadPharmacies();
       },
-
       (error) => {
         this.locating = false;
 
@@ -327,17 +379,12 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
             this.errorMessage =
               'Autorisation de localisation refusée. Autorisez-la dans votre navigateur.';
             break;
-
           case error.POSITION_UNAVAILABLE:
-            this.errorMessage =
-              'Votre position est actuellement indisponible.';
+            this.errorMessage = 'Votre position est actuellement indisponible.';
             break;
-
           case error.TIMEOUT:
-            this.errorMessage =
-              'La localisation prend trop de temps. Réessayez.';
+            this.errorMessage = 'La localisation prend trop de temps. Réessayez.';
             break;
-
           default:
             this.errorMessage =
               'Une erreur est survenue pendant la localisation.';
@@ -345,7 +392,6 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
 
         console.error('Erreur de géolocalisation :', error);
       },
-
       {
         enableHighAccuracy: true,
         timeout: 30000,
@@ -355,10 +401,7 @@ export class PharmaciesPage implements AfterViewInit, OnDestroy {
   }
 
   formatDistance(distance: number): string {
-    if (distance < 1000) {
-      return `${Math.round(distance)} m`;
-    }
-
+    if (distance < 1000) return `${Math.round(distance)} m`;
     return `${(distance / 1000).toFixed(1)} km`;
   }
 

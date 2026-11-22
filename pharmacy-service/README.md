@@ -333,7 +333,7 @@ data/osm/                              données locales, non versionnées
 ## 9. Limites connues et pistes d'amélioration
 
 - Les données OpenStreetMap n'ont souvent ni adresse, ni téléphone, ni horaires.
-- Pas d'information « pharmacie de garde » ni de disponibilité en temps réel.
+- Pas de disponibilité en temps réel. Les gardes sont lues depuis `pharmacy_duties` (voir « Pharmacies de garde »); leur saisie n'est pas encore gérée.
 - La précision de la position dépend de l'appareil ; envisager un clic sur la carte ou une recherche d'adresse comme alternative.
 - Cercle de précision autour du point bleu et choix du rayon (1 km, 2 km, 5 km) côté interface.
 - En production : servir le site en HTTPS et rediriger `/api` vers le service par le serveur web (le proxy Angular ne sert qu'en développement).
@@ -360,6 +360,16 @@ Pharmacies et recherche par rayon (US04 / EF15). Spring Boot 4, PostgreSQL 16 + 
 3. `set -a; source .env; set +a; ./mvnw spring-boot:run` (port 8082).
 
 ## API
+
+### Annuler une réservation (US19 / EF22)
+
+`POST /api/availability-requests/{request}/reservations/{id}/cancel` — rôle `PATIENT`, sans corps.
+Le patient est identifié par le jeton. Une réponse `200` retourne la réservation avec `status: "ANNULEE"`.
+Les réponses `401` et `403` indiquent respectivement un jeton absent/invalide/expiré et un rôle non autorisé.
+La réponse `404` est uniforme pour une réservation inconnue, appartenant à un autre patient, ou dont la demande ne correspond pas.
+La réponse `409` indique que la réservation du patient n'est plus annulable (déjà retirée, annulée ou expirée).
+L'annulation libère le quota des réservations actives et permet de réserver à nouveau sur la même demande.
+Elle ne purge pas l'image d'ordonnance et ne crée pas de notification.
 
 ### PowerShell
 
@@ -444,3 +454,68 @@ En local, **Mailpit** (service `mailpit` du `docker-compose.yaml`) reçoit tous 
 - `NotificationIntegrationTest` : chaque événement crée la bonne notification ; un utilisateur ne voit et ne marque que les siennes ; 401 sans jeton.
 - `EmailOutboxIntegrationTest` : envoi puis `SENT` ; jamais envoyé deux fois ; `SKIPPED` si l'utilisateur est inconnu ; réessai puis `FAILED` après 5 échecs.
 - `EmailComposerTest` : contenu de l'e-mail ; un lien externe n'est jamais repris.
+
+## Pharmacies de garde (US15)
+
+`GET /api/pharmacies/garde` (public) renvoie les pharmacies de garde du jour.
+
+- Paramètres optionnels `lat` et `lng`, à fournir ensemble (sinon 400). Avec la position, les résultats sont triés par distance (`distanceM`), sinon par nom.
+- « Aujourd'hui » est calculé côté serveur à l'heure du Maroc (`Africa/Casablanca`).
+- Les périodes de garde sont stockées dans `pharmacy_duties` (migration `V10__pharmacy_duties.sql`) : une ligne par pharmacie avec `starts_on` et `ends_on`, bornes incluses.
+- Seules les pharmacies visibles dans `/nearby` sont renvoyées (`APPROVED`, ou `OSM` + `UNVERIFIED`).
+- Données de démonstration (hors Flyway) : `scripts/demo-pharmacies.sql` puis `scripts/demo-gardes.sql`.
+
+
+## Notifications asynchrones avec Kafka (US14, évolution)
+
+Pour supporter de nombreux utilisateurs, les notifications ne sont plus créées pendant la requête de l'utilisateur.
+
+**Fonctionnement**
+1. Une action métier (nouvelle demande, réponse, réservation, retrait) publie un `NotificationEvent`.
+2. Après la transaction (AFTER_COMMIT), l'événement est envoyé dans le topic Kafka `dwadispo.notifications` (3 partitions).
+   La clé est l'identifiant de la demande ou de la réservation : les événements d'une même demande restent dans l'ordre.
+3. Trois consommateurs (groupe `notifications`) lisent les partitions en parallèle et créent les notifications.
+   L'e-mail est ensuite envoyé par l'outbox existante.
+
+**Garanties**
+- Idempotence : un événement déjà traité est ignoré (table `notification_events_traites`, migration V11).
+- Secours : si Kafka est indisponible, l'événement est traité directement ; aucune notification n'est perdue.
+- ENF05 : les événements ne contiennent que des identifiants, jamais de nom de médicament.
+
+**Configuration**
+
+| Variable | Rôle | Valeur par défaut |
+|---|---|---|
+| `NOTIFICATIONS_KAFKA_ENABLED` | active Kafka (sinon traitement direct, utilisé par les tests) | `false` |
+| `KAFKA_BOOTSTRAP_SERVERS` | adresse de Kafka | `localhost:9092` |
+
+**Observer Kafka**
+```bash
+# Interface web (outil de développement) : http://127.0.0.1:8090
+docker compose --profile outils up -d kafka-ui
+
+# État des consommateurs (le LAG doit être à 0)
+docker compose exec -T kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 --describe --group notifications
+```
+
+## Administration des pharmacies (US21, EF06)
+
+| Méthode | Chemin | Rôle | Réponses |
+|---|---|---|---|
+| `GET` | `/api/pharmacies/admin/pending` | `ADMIN` | `200`, `401`, `403` |
+| `POST` | `/api/pharmacies/admin/{id}/validate` | `ADMIN` | `200`, `400` si l’identifiant est mal formé, `401`, `403`, `404`, `409` |
+
+La liste contient au plus 100 pharmacies au statut `PENDING`, ordonnées par date d’inscription, avec seulement `id`, `name`, `address`, `licenseNumber` et `createdAt`. La validation passe la pharmacie à `APPROVED` par une mise à jour atomique conditionnée par `status = 'PENDING'`. Une pharmacie inconnue renvoie `404`; une pharmacie existante qui n’est plus en attente renvoie `409`. Les pharmacies OSM `UNVERIFIED` ne sont pas modifiées.
+
+Cette fonctionnalité ne rejette pas les inscriptions et n’envoie pas de notification. Elle ne conserve pas l’identité de l’administrateur ni une date de validation. Les opérations de stock, de gardes et de réponse d’un pharmacien propriétaire d’une pharmacie `PENDING` ne sont pas modifiées.
+
+### Compte administrateur de démonstration
+
+Créer d’abord un compte par le parcours habituel, puis promouvoir ce compte depuis la base d’authentification `auth-service` avec un accès administrateur à PostgreSQL :
+
+```sql
+UPDATE users SET role = 'ADMIN' WHERE email = '<EMAIL_DE_DEMO>';
+```
+
+Utiliser l’adresse du compte de démonstration à la place du marqueur. Le compte doit se déconnecter puis se reconnecter pour obtenir un jeton portant le rôle `ADMIN`. Aucun mot de passe ni secret n’est requis dans le dépôt.

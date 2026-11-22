@@ -6,6 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Observable, catchError, forkJoin, map, of, switchMap, timer } from 'rxjs';
 import { CartePharmaciesComponent, PointCarte } from '../components/carte-pharmacies';
 import { ReservationQrComponent } from '../components/reservation-qr';
+import { PharmacyRatingComponent } from '../components/pharmacy-rating';
 import { PharmacyService } from '../services/pharmacy.service';
 
 /** Format de GET /api/availability-requests/{id}/responses (ReviewDtos.Request). */
@@ -44,7 +45,7 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
 
 @Component({
   selector: 'app-request-tracking',
-  imports: [DecimalPipe, RouterLink, CartePharmaciesComponent, ReservationQrComponent],
+  imports: [DecimalPipe, RouterLink, CartePharmaciesComponent, ReservationQrComponent, PharmacyRatingComponent],
   template: `
     <main class="suivi">
       <h1>Suivi de ma demande</h1>
@@ -74,6 +75,7 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
           } @else if (res.status === 'RETIREE') {
             <h2>📦 Médicaments retirés</h2>
             <p>Merci d’avoir utilisé DwaDispo.</p>
+            <app-pharmacy-rating [requestId]="res.requestId" [reservationId]="res.id" />
           } @else {
             <h2>Réservation annulée</h2>
           }
@@ -141,29 +143,29 @@ export function trierReponses(liste: ReponsePharmacie[]): ReponsePharmacie[] {
     </main>
   `,
   styles: [`
-    .suivi { max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem; } h1 { color: #176b55; }
+    .suivi { max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem; } h1 { color: var(--couleur-bandeau); }
     .ref, .maj, .legende { color: #555; font-size: .9rem; } [role=alert] { color: #a11525; }
-    .reservation { margin: 1rem 0; padding: 1.2rem 1.5rem; border-radius: 12px; background: #e8f5ef; border: 2px solid #16a34a; max-width: 560px; }
+    .reservation { margin: 1rem 0; padding: 1.2rem 1.5rem; border-radius: 12px; background: #f3ecdb; border: 2px solid #b89b5e; max-width: 560px; }
     .reservation[data-statut='EXPIREE'], .reservation[data-statut='ANNULEE'] { background: #f6f6f6; border-color: #9ca3af; }
-    .reservation h2 { margin: 0 0 .5rem; color: #166534; font-size: 1.2rem; } .reservation p { margin: .3rem 0; }
-    .code { font-size: 2.4rem; font-weight: 800; letter-spacing: .35em; color: #176b55; font-family: ui-monospace, monospace; margin: .6rem 0 !important; }
+    .reservation h2 { margin: 0 0 .5rem; color: var(--couleur-or-texte); font-size: 1.2rem; } .reservation p { margin: .3rem 0; }
+    .code { font-size: 2.4rem; font-weight: 800; letter-spacing: .35em; color: var(--couleur-or-texte); font-family: ui-monospace, monospace; margin: .6rem 0 !important; }
     .resume { display: flex; gap: .6rem; flex-wrap: wrap; margin: 1rem 0 .3rem; }
     .pastille { padding: .35rem .8rem; border-radius: 999px; background: #f1f1f1; font-weight: 600; }
     .pastille.ok { background: #dcfce7; color: #166534; } .pastille.ko { background: #fee2e2; color: #991b1b; }
     .grille { display: grid; grid-template-columns: minmax(280px, 420px) 1fr; gap: 1.5rem; margin-top: 1rem; }
     @media (max-width: 800px) { .grille { grid-template-columns: 1fr; } }
     .liste { list-style: none; padding: 0; margin: 0 0 1rem; display: grid; gap: .7rem; }
-    .liste li { background: #fff; border: 1px solid #e3e3e3; border-left: 5px solid #9ca3af; border-radius: 10px; padding: .8rem 1rem; }
+    .liste li { background: #fff; border: 1px solid var(--couleur-bordure); border-left: 5px solid #9ca3af; border-radius: 10px; padding: .8rem 1rem; }
     .liste li[data-statut='AVAILABLE'] { border-left-color: #16a34a; } .liste li[data-statut='UNAVAILABLE'] { border-left-color: #dc2626; }
     .ligne { display: flex; justify-content: space-between; gap: .5rem; } .statut { font-size: .85rem; color: #555; }
-    .prix { font-size: 1.2rem; font-weight: 700; color: #166534; margin: .3rem 0; } .commentaire { color: #444; margin: .2rem 0; }
-    .liste button { margin-top: .4rem; padding: .55rem 1.1rem; border-radius: 6px; border: 0; background: #176b55; color: #fff; cursor: pointer; font: inherit; }
+    .prix { font-size: 1.2rem; font-weight: 700; color: var(--couleur-or-texte); margin: .3rem 0; } .commentaire { color: #444; margin: .2rem 0; }
+    .liste button { margin-top: .4rem; padding: .55rem 1.1rem; border-radius: 6px; border: 0; background: var(--couleur-bandeau); color: #fff; cursor: pointer; font: inherit; }
     .liste button:disabled { opacity: .5; cursor: default; }
-    .vide { color: #555; background: #f6f7f7; padding: .8rem 1rem; border-radius: 8px; }
-    details { background: #fff; border: 1px solid #e3e3e3; border-radius: 10px; padding: .6rem 1rem; } summary { cursor: pointer; }
+    .vide { color: #555; background: #f6f1e4; padding: .8rem 1rem; border-radius: 8px; }
+    details { background: #fff; border: 1px solid var(--couleur-bordure); border-radius: 10px; padding: .6rem 1rem; } summary { cursor: pointer; }
     .attente { columns: 2; font-size: .9rem; color: #555; }
     .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 .2rem 0 .8rem; background: #9ca3af; }
-    .dot.ok { background: #16a34a; } .dot.ko { background: #dc2626; } .dot.moi { background: #2878e8; }
+    .dot.ok { background: #16a34a; } .dot.ko { background: #dc2626; } .dot.moi { background: #faf6ee; box-shadow: 0 0 0 2px #232323; }
   `],
 })
 export class RequestTrackingPage {

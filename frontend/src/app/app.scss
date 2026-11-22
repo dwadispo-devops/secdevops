@@ -1,9 +1,118 @@
-
 /* Menu de navigation (TS04) */
-.topbar { position: sticky; top: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center;
-  flex-wrap: wrap; gap: .5rem; padding: .7rem 1.5rem; background: #176b55; }
-.brand { color: #fff; font-weight: 700; font-size: 1.15rem; text-decoration: none; }
-.topbar nav { display: flex; gap: .3rem; flex-wrap: wrap; }
-.topbar nav a, .topbar nav button { color: #e6f4ef; text-decoration: none; padding: .4rem .7rem; border-radius: 6px;
-  background: none; border: 0; font: inherit; cursor: pointer; }
-.topbar nav a:hover, .topbar nav button:hover, .topbar nav a.active { background: rgba(255, 255, 255, .18); color: #fff; }
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+  height: auto;
+  min-height: 64px;
+  padding: .7rem 1.5rem;
+  background: #232323;
+  border-bottom: 1px solid rgba(184, 155, 94, .6);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+}
+
+.brand img {
+  display: block;
+  height: 34px;
+  width: auto;
+}
+
+.topbar nav {
+  display: flex;
+  gap: .3rem;
+  flex-wrap: wrap;
+}
+
+.topbar nav a,
+.topbar nav button {
+  color: #e8e2d4;
+  text-decoration: none;
+  padding: .4rem .7rem;
+  border-radius: 6px;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.topbar nav a {
+  position: relative;
+  transition: color .2s, text-shadow .2s;
+}
+
+.topbar nav a:hover,
+.topbar nav button:hover {
+  background: none;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(216, 190, 130, .45);
+}
+
+.topbar nav a.active {
+  background: none;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(216, 190, 130, .6);
+}
+
+.topbar nav a.active::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #d8be82, transparent);
+  box-shadow: 0 0 10px 1px rgba(216, 190, 130, .7);
+}
+
+/* Navigation responsive */
+@media (max-width: 1050px) {
+  .topbar {
+    flex-wrap: wrap;
+    row-gap: .5rem;
+  }
+
+  .topbar nav {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 767px) {
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: .65rem .8rem;
+    gap: .5rem;
+  }
+
+  .brand {
+    align-self: flex-start;
+  }
+
+  .topbar nav {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: .25rem;
+    padding-bottom: .35rem;
+    scrollbar-width: thin;
+  }
+
+  .topbar nav a,
+  .topbar nav button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: .82rem;
+    padding: .45rem .6rem;
+  }
+}
