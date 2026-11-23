@@ -1,0 +1,27 @@
+{
+  "file": "ordo_18_produit_absent.png",
+  "category": "hors catalogue",
+  "description": "Un complément alimentaire absent du catalogue CNOPS au milieu de 2 médicaments",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Debridat",
+      "dosage": "100 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Probiolact",
+      "dosage": "",
+      "quantity": 1,
+      "inCatalogue": false
+    },
+    {
+      "name": "Forlax",
+      "dosage": "10 g",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

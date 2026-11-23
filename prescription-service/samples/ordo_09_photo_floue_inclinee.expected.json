@@ -1,0 +1,21 @@
+{
+  "file": "ordo_09_photo_floue_inclinee.png",
+  "category": "qualité d'image",
+  "description": "Photo floue et inclinée de 5°",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Primperan",
+      "dosage": "10 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Brufen",
+      "dosage": "400 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

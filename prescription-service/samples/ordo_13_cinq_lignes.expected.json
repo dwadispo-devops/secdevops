@@ -1,0 +1,39 @@
+{
+  "file": "ordo_13_cinq_lignes.png",
+  "category": "ordonnance longue",
+  "description": "5 médicaments sur une seule page",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Amoxil",
+      "dosage": "1 g",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Solupred",
+      "dosage": "20 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Doliprane",
+      "dosage": "1 g",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Mopral",
+      "dosage": "20 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Vitamine C",
+      "dosage": "1 g",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

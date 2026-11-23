@@ -1,26 +1,33 @@
 {
   "file": "ordo_02_quatre_lignes.png",
+  "category": "pédiatrie / hors catalogue",
+  "description": "4 lignes pédiatriques dont un produit absent du catalogue CNOPS (Physiomer)",
+  "isPrescription": true,
   "expectedMedications": [
     {
       "name": "Amoxil",
       "dosage": "250 mg/5 ml",
-      "quantity": 1
+      "quantity": 1,
+      "inCatalogue": true
     },
     {
       "name": "Efferalgan",
       "dosage": "",
-      "quantity": 1
+      "quantity": 1,
+      "inCatalogue": true
     },
     {
       "name": "Rhinathiol",
       "dosage": "",
-      "quantity": 1
+      "quantity": 1,
+      "inCatalogue": true
     },
     {
       "name": "Physiomer",
       "dosage": "",
-      "quantity": 1
+      "quantity": 1,
+      "inCatalogue": false
     }
   ],
   "mustNotContain": []
-}
+}
