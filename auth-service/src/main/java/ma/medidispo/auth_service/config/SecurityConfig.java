@@ -37,6 +37,8 @@ public class SecurityConfig {
                         "/api/auth/refresh",
                         "/api/auth/logout").permitAll()
                 // US14 : contact pour les e-mails ; le jeton interne est vérifié dans le contrôleur
+                // TS07 : lecture de la documentation de l'API (coupée en production par SWAGGER_ENABLED=false)
+                .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/internal/users/*/contact").permitAll()
                 // US20 : mon profil, pour tout utilisateur connecté
                 .requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated()
