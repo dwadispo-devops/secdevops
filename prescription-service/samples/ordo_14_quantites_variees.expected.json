@@ -1,0 +1,21 @@
+{
+  "file": "ordo_14_quantites_variees.png",
+  "category": "quantités",
+  "description": "Nombre de boîtes écrit en toutes lettres",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Lyrica",
+      "dosage": "150 mg",
+      "quantity": 2,
+      "inCatalogue": true
+    },
+    {
+      "name": "Temesta",
+      "dosage": "1 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

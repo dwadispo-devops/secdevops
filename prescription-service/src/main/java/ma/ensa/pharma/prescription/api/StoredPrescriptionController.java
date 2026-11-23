@@ -28,9 +28,11 @@ public class StoredPrescriptionController {
     }
     @GetMapping("/api/v1/prescriptions")
     public ResponseEntity<List<PrescriptionHistoryResponse>> history(
-            @RequestHeader(value="Authorization",required=false) String auth) {
+            @RequestHeader(value="Authorization",required=false) String auth,
+            @RequestParam(value="profile", required=false) String profile) {
         UUID patientId = patients.authenticatedPatientId(auth);
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(readings.history(patientId));
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(
+                profile == null ? readings.history(patientId) : readings.history(patientId, profile));
     }
 
     @PostMapping("/api/v1/prescriptions/{id}/read")

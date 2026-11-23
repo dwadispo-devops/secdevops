@@ -1,0 +1,21 @@
+{
+  "file": "ordo_08_machine_a_ecrire.png",
+  "category": "police",
+  "description": "Police « machine à écrire » (chasse fixe)",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Ciflox",
+      "dosage": "500 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Flagyl",
+      "dosage": "500 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

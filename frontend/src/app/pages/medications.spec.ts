@@ -13,7 +13,10 @@ describe('MedicationsPage (US05)', () => {
     page = TestBed.createComponent(MedicationsPage).componentInstance;
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    TestBed.resetTestingModule();
+  });
 
   it('n’appelle pas le serveur avec moins de 2 caractères', () => {
     let result: unknown[] | undefined;

@@ -1,0 +1,27 @@
+{
+  "file": "ordo_20_pediatrie_gouttes.png",
+  "category": "pédiatrie / unités",
+  "description": "Formes pédiatriques : gouttes, pourcentage, sirop",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Celestene",
+      "dosage": "0.5 mg/ml",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Efferalgan",
+      "dosage": "3 %",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Rhinathiol",
+      "dosage": "2 %",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

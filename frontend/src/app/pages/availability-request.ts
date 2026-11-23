@@ -107,13 +107,13 @@ interface Medication {
   `,
   styles: [`
     .container { max-width: 760px; margin: 40px auto; padding: 24px; }
-    h1 { color: #176b55; }
+    h1 { color: var(--couleur-bandeau); }
     h2 { margin-top: 28px; }
     .medication { display: flex; gap: 10px; margin: 12px 0; }
     input { padding: 10px; max-width: 100%; }
     button { padding: 10px 16px; cursor: pointer; }
     .actions { margin-top: 24px; }
-    .apercu { margin: 12px 0; padding: 12px 16px; border-radius: 8px; background: #e8f5ef; border-left: 4px solid #176b55; }
+    .apercu { margin: 12px 0; padding: 12px 16px; border-radius: 8px; background: #f3ecdb; border-left: 4px solid var(--couleur-or); }
     .apercu.vide { background: #fdecea; border-left-color: #b00020; color: #8a1020; }
     .apercu p { margin: 0 0 6px; } .apercu ul { margin: 0; padding-left: 20px; } .apercu .plus { margin-top: 6px; color: #555; }
     @media (max-width: 600px) {

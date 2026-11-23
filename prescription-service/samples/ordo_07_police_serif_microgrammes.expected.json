@@ -1,0 +1,15 @@
+{
+  "file": "ordo_07_police_serif_microgrammes.png",
+  "category": "police / unités",
+  "description": "Police à empattement, dosage en microgrammes",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Levothyrox",
+      "dosage": "50 µg",
+      "quantity": 3,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

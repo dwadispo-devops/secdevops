@@ -1,0 +1,33 @@
+{
+  "file": "ordo_16_deux_colonnes.png",
+  "category": "mise en page",
+  "description": "Ordonnance en deux colonnes, dont un aérosol dosé en µg",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Xyzall",
+      "dosage": "5 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Ventoline",
+      "dosage": "100 µg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Zyrtec",
+      "dosage": "10 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    },
+    {
+      "name": "Aerius",
+      "dosage": "0.5 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

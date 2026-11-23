@@ -19,4 +19,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Modifying
     @Query("update RefreshToken t set t.revoked = true where t.userId = :userId and t.revoked = false")
     int revokeAllByUserId(@Param("userId") UUID userId);
+    /** US20 : suppression de toutes les sessions d'un compte supprimé. */
+    @Modifying
+    @Query("delete from RefreshToken t where t.userId = :userId")
+    int deleteAllByUserId(@Param("userId") UUID userId);
 }

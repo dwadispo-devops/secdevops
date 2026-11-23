@@ -99,3 +99,9 @@ springdoc:
 logging:
   level:
     ma.ensa.pharma: INFO
+
+# --- US20 / loi 09-08 : effacement des ordonnances d'un compte supprimé (topic dwadispo.comptes) ---
+# false par défaut (tests) ; activé dans docker-compose
+comptes.kafka.enabled: ${COMPTES_KAFKA_ENABLED:false}
+spring.kafka.bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+spring.kafka.consumer.auto-offset-reset: earliest

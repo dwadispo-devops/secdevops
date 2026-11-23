@@ -387,6 +387,16 @@ Pharmacies et recherche par rayon (US04 / EF15). Spring Boot 4, PostgreSQL 16 + 
 
 ## API
 
+### Annuler une réservation (US19 / EF22)
+
+`POST /api/availability-requests/{request}/reservations/{id}/cancel` — rôle `PATIENT`, sans corps.
+Le patient est identifié par le jeton. Une réponse `200` retourne la réservation avec `status: "ANNULEE"`.
+Les réponses `401` et `403` indiquent respectivement un jeton absent/invalide/expiré et un rôle non autorisé.
+La réponse `404` est uniforme pour une réservation inconnue, appartenant à un autre patient, ou dont la demande ne correspond pas.
+La réponse `409` indique que la réservation du patient n'est plus annulable (déjà retirée, annulée ou expirée).
+L'annulation libère le quota des réservations actives et permet de réserver à nouveau sur la même demande.
+Elle ne purge pas l'image d'ordonnance et ne crée pas de notification.
+
 ### PowerShell
 
 Depuis `pharmacy-service`, exécuter `./start-local.ps1` avec Java 21 et Docker actifs.
@@ -579,3 +589,24 @@ docker compose exec -T pharmacy-db sh -c 'psql -U "$POSTGRES_USER" -d pharmacydb
 ```
 
 `demo-pharmacies.sql` crée des pharmacies fictives, et `demo-gardes.sql` met les 5 plus proches du centre de garde pour une semaine. À ne pas charger avant l'import OSM : la table ne serait plus vide et `ONLY_IF_EMPTY` sauterait l'import.
+
+## Administration des pharmacies (US21, EF06)
+
+| Méthode | Chemin | Rôle | Réponses |
+|---|---|---|---|
+| `GET` | `/api/pharmacies/admin/pending` | `ADMIN` | `200`, `401`, `403` |
+| `POST` | `/api/pharmacies/admin/{id}/validate` | `ADMIN` | `200`, `400` si l’identifiant est mal formé, `401`, `403`, `404`, `409` |
+
+La liste contient au plus 100 pharmacies au statut `PENDING`, ordonnées par date d’inscription, avec seulement `id`, `name`, `address`, `licenseNumber` et `createdAt`. La validation passe la pharmacie à `APPROVED` par une mise à jour atomique conditionnée par `status = 'PENDING'`. Une pharmacie inconnue renvoie `404`; une pharmacie existante qui n’est plus en attente renvoie `409`. Les pharmacies OSM `UNVERIFIED` ne sont pas modifiées.
+
+Cette fonctionnalité ne rejette pas les inscriptions et n’envoie pas de notification. Elle ne conserve pas l’identité de l’administrateur ni une date de validation. Les opérations de stock, de gardes et de réponse d’un pharmacien propriétaire d’une pharmacie `PENDING` ne sont pas modifiées.
+
+### Compte administrateur de démonstration
+
+Créer d’abord un compte par le parcours habituel, puis promouvoir ce compte depuis la base d’authentification `auth-service` avec un accès administrateur à PostgreSQL :
+
+```sql
+UPDATE users SET role = 'ADMIN' WHERE email = '<EMAIL_DE_DEMO>';
+```
+
+Utiliser l’adresse du compte de démonstration à la place du marqueur. Le compte doit se déconnecter puis se reconnecter pour obtenir un jeton portant le rôle `ADMIN`. Aucun mot de passe ni secret n’est requis dans le dépôt.
