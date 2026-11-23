@@ -1,0 +1,4 @@
+# Exceptions gitleaks acceptées après revue (livraison v0.4.0, 23/11/2026).
+# PharmacyAdminIntegrationTest (US21) : TEST_SECRET est une clé HMAC propre au test, qui signe seulement
+# des JWT factices pendant le test. Vérifiée différente de la vraie clé JWT (JWT_SECRET, hors dépôt).
+7cdb6fd397b5c2c51cdb6db06a7856b5c6c3634f:pharmacy-service/src/test/java/ma/medidispo/pharmacy_service/admin/PharmacyAdminIntegrationTest.java:generic-api-key:39
