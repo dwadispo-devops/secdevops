@@ -53,6 +53,8 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        // TS07 : lecture de la documentation de l'API (coupée en production par SWAGGER_ENABLED=false)
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
 
                         // Page d'erreur interne de Spring : sans cette ligne,

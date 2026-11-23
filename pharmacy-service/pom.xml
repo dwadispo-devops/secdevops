@@ -36,6 +36,12 @@
     </dependencyManagement>
 
     <dependencies>
+        <!-- TS07 : documentation OpenAPI / Swagger UI -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>3.2.1</version>
+        </dependency>
         <!-- US14 : envoi des e-mails de notification -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

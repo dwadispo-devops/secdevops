@@ -1,3 +1,4 @@
+import { AuthService } from '../services/auth.service';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -40,6 +41,7 @@ export const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d).{8,72}$/;
 export class RegisterPage {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
   firstName = ''; lastName = ''; email = ''; password = ''; confirm = '';
   readonly busy = signal(false); readonly error = signal('');
 
@@ -61,7 +63,11 @@ export class RegisterPage {
         this.busy.set(false); this.password = ''; this.confirm = '';
         sessionStorage.setItem('access_token', result.accessToken);
         if (result.refreshToken) sessionStorage.setItem('refresh_token', result.refreshToken);
-        void this.router.navigateByUrl('/scan');
+        // Met à jour le menu (connected, profile) comme après une connexion, puis ouvre le scan
+        this.auth.loadProfile().subscribe({
+          next: () => void this.router.navigateByUrl('/scan'),
+          error: () => void this.router.navigateByUrl('/scan'),
+        });
       },
       error: e => {
         this.busy.set(false);
