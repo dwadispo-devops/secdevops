@@ -68,6 +68,18 @@ public class ReservationService {
             .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Aucune réservation pour cette demande"));
     }
 
+    /** Annule une réservation appartenant au patient pour cette demande. */
+    @Transactional
+    public Reservation cancel(UUID patient, UUID request, UUID reservationId) {
+        var cancelled = repository.cancel(patient, request, reservationId);
+        if (cancelled.isPresent()) return cancelled.get();
+
+        if (repository.belongsToPatientAndRequest(reservationId, request, patient)) {
+            throw new ResponseStatusException(CONFLICT, "Cette réservation ne peut plus être annulée.");
+        }
+        throw new ResponseStatusException(NOT_FOUND, "Réservation introuvable");
+    }
+
     /**
      * Recherche d'une réservation active pour le pharmacien (US13).
      * Normalise le code (trim + majuscules) et valide le format.

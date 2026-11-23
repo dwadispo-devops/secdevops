@@ -1,0 +1,21 @@
+{
+  "file": "ordo_10_faible_contraste_jpeg.jpg",
+  "category": "qualité d'image",
+  "description": "Faible contraste, bruit et forte compression JPEG",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Diamicron",
+      "dosage": "80 mg",
+      "quantity": 2,
+      "inCatalogue": true
+    },
+    {
+      "name": "Lasilix",
+      "dosage": "40 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

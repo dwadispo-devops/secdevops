@@ -144,7 +144,36 @@ Dans une VM, le navigateur n'a ni GPS ni Wi-Fi réel : la position « Me localis
 
 ## 5. Importer les pharmacies OpenStreetMap
 
-Le service contient un import au démarrage, **désactivé par défaut** (`OsmPharmacyImportRunner`).
+Le service contient un import au démarrage (`OsmPharmacyImportRunner`), **désactivé par défaut** : il n'est activé que par `docker-compose.yaml` (profil `dev`) ou par l'option `--osm.import.enabled=true`.
+
+### Import automatique avec Docker Compose (recommandé)
+
+Dans `docker-compose.yaml`, le service `pharmacy-service` lance l'import au démarrage (profil Spring `dev`) :
+
+| Variable | Valeur | Rôle |
+|---|---|---|
+| `OSM_IMPORT_ENABLED` | `"true"` | active l'import |
+| `OSM_IMPORT_FILE` | `/app/data/pharmacies-marrakech.geojson` | fichier lu dans le conteneur |
+| `OSM_IMPORT_ONLY_IF_EMPTY` | `"true"` | saute l'import si la table `pharmacies` contient déjà au moins une ligne |
+
+Le fichier `data/pharmacies-marrakech.geojson` est versionné et monté en lecture seule dans le conteneur.
+
+```bash
+docker compose up -d --build pharmacy-service
+docker compose logs pharmacy-service | grep -i "import osm"
+```
+
+Résultat attendu sur une base vide : 491 pharmacies insérées et 29 ignorées.
+
+Attention : avec `ONLY_IF_EMPTY`, l'import ne se lance que sur une table totalement vide. Si des pharmacies existent déjà (démonstration ou saisie à la main), il est sauté et le log affiche « Import OSM ignoré : la table contient déjà des pharmacies. »
+
+Vérification du comptage :
+
+```bash
+docker compose exec pharmacy-db sh -c 'psql -U "$POSTGRES_USER" -d pharmacydb -c "SELECT source, status, count(*) FROM pharmacies GROUP BY 1,2;"'
+```
+
+La méthode `mvnw` ci-dessous reste valable pour un import manuel hors Docker.
 
 ### Format attendu
 
@@ -167,10 +196,7 @@ Depuis `pharmacy-service/` :
 Le service affiche à la fin :
 
 ```
-========== IMPORT OSM TERMINÉ ==========
-Pharmacies insérées : N
-Pharmacies ignorées : M
-========================================
+Import OSM terminé : N insérées, M ignorées
 ```
 
 Arrêter ensuite le service (`Ctrl+C`) et le relancer **sans** `--osm.import.enabled`.
@@ -333,7 +359,7 @@ data/osm/                              données locales, non versionnées
 ## 9. Limites connues et pistes d'amélioration
 
 - Les données OpenStreetMap n'ont souvent ni adresse, ni téléphone, ni horaires.
-- Pas de disponibilité en temps réel. Les gardes sont lues depuis `pharmacy_duties` (voir « Pharmacies de garde »); leur saisie n'est pas encore gérée.
+- Pas de disponibilité en temps réel. Les gardes sont lues depuis `pharmacy_duties` (voir « Pharmacies de garde »). Le pharmacien les déclare et les supprime lui-même dans la page « Mes gardes » ; le chargement SQL du tableau officiel (voir « Charger les gardes de la semaine ») reste possible pour une saisie groupée.
 - La précision de la position dépend de l'appareil ; envisager un clic sur la carte ou une recherche d'adresse comme alternative.
 - Cercle de précision autour du point bleu et choix du rayon (1 km, 2 km, 5 km) côté interface.
 - En production : servir le site en HTTPS et rediriger `/api` vers le service par le serveur web (le proxy Angular ne sert qu'en développement).
@@ -360,6 +386,16 @@ Pharmacies et recherche par rayon (US04 / EF15). Spring Boot 4, PostgreSQL 16 + 
 3. `set -a; source .env; set +a; ./mvnw spring-boot:run` (port 8082).
 
 ## API
+
+### Annuler une réservation (US19 / EF22)
+
+`POST /api/availability-requests/{request}/reservations/{id}/cancel` — rôle `PATIENT`, sans corps.
+Le patient est identifié par le jeton. Une réponse `200` retourne la réservation avec `status: "ANNULEE"`.
+Les réponses `401` et `403` indiquent respectivement un jeton absent/invalide/expiré et un rôle non autorisé.
+La réponse `404` est uniforme pour une réservation inconnue, appartenant à un autre patient, ou dont la demande ne correspond pas.
+La réponse `409` indique que la réservation du patient n'est plus annulable (déjà retirée, annulée ou expirée).
+L'annulation libère le quota des réservations actives et permet de réserver à nouveau sur la même demande.
+Elle ne purge pas l'image d'ordonnance et ne crée pas de notification.
 
 ### PowerShell
 
@@ -453,7 +489,6 @@ En local, **Mailpit** (service `mailpit` du `docker-compose.yaml`) reçoit tous 
 - « Aujourd'hui » est calculé côté serveur à l'heure du Maroc (`Africa/Casablanca`).
 - Les périodes de garde sont stockées dans `pharmacy_duties` (migration `V10__pharmacy_duties.sql`) : une ligne par pharmacie avec `starts_on` et `ends_on`, bornes incluses.
 - Seules les pharmacies visibles dans `/nearby` sont renvoyées (`APPROVED`, ou `OSM` + `UNVERIFIED`).
-- Données de démonstration (hors Flyway) : `scripts/demo-pharmacies.sql` puis `scripts/demo-gardes.sql`.
 
 
 ## Notifications asynchrones avec Kafka (US14, évolution)
@@ -488,3 +523,90 @@ docker compose --profile outils up -d kafka-ui
 docker compose exec -T kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 --describe --group notifications
 ```
+
+## Gardes : chargement, vérification et démo (US15)
+
+### Déclarer ses gardes (page « Mes gardes »)
+
+Un pharmacien connecté déclare et supprime lui-même les gardes de ses pharmacies : http://localhost:4200/pharmacien/gardes
+
+API (rôle `PHARMACIEN`, l'identifiant vient du jeton : un pharmacien ne gère que ses pharmacies) :
+
+| Méthode | Route | Réponse |
+|---|---|---|
+| `GET` | `/api/pharmacies/me/gardes` | liste de ses gardes |
+| `POST` | `/api/pharmacies/me/gardes` | `201` ; corps `pharmacyId`, `startsOn`, `endsOn` |
+| `DELETE` | `/api/pharmacies/me/gardes/{id}` | `204` |
+
+Erreurs :
+
+- `400` : date de fin avant la date de début, période déjà terminée, ou période de plus de 31 jours.
+- `404` : pharmacie introuvable (ou qui n'est pas la sienne), ou garde inconnue à la suppression.
+- `409` : la pharmacie a déjà une garde sur cette période.
+
+### Charger les gardes de la semaine
+
+Les gardes ne sont jamais inventées : elles viennent du tableau officiel du Syndicat des Pharmaciens de Marrakech, publié chaque semaine. Elles ne sont pas dans le dépôt (données locales, valables une semaine) et peuvent se charger en groupe par SQL, depuis la racine du projet (le pharmacien, lui, passe par la page « Mes gardes »).
+
+Modèle pour une pharmacie (remplacer le nom et les dates) :
+
+```bash
+docker compose exec -T pharmacy-db sh -c 'psql -U "$POSTGRES_USER" -d pharmacydb' <<'SQL'
+INSERT INTO pharmacy_duties (pharmacy_id, starts_on, ends_on)
+SELECT id, DATE '2026-11-14', DATE '2026-11-20'
+FROM pharmacies
+WHERE name ILIKE '%nom de la pharmacie%'
+ON CONFLICT DO NOTHING;
+SQL
+```
+
+- La table `pharmacy_duties` a une contrainte d'unicité `(pharmacy_id, starts_on)` : relancer la même commande ne crée pas de doublon.
+- Vérifier qu'une seule pharmacie correspond au nom avant d'insérer. Pour les homonymes, contrôler aussi la position GPS.
+- Une pharmacie du tableau qui n'est pas retrouvée dans la base (nom différent, position éloignée) reste sans badge : on ne devine pas.
+
+### Vérifier les gardes
+
+```bash
+docker compose exec pharmacy-db sh -c 'psql -U "$POSTGRES_USER" -d pharmacydb -c "SELECT starts_on, ends_on, count(*) FROM pharmacy_duties GROUP BY 1,2;"'
+curl -s http://localhost:8080/api/pharmacies/garde
+```
+
+Après la date `ends_on`, `/garde` renvoie une liste vide : recharger les gardes de la nouvelle semaine.
+
+### Comportement du filtre « De garde aujourd'hui » (interface)
+
+- Le bouton affiche uniquement les pharmacies de garde ; chacune porte le badge « De garde » et un marqueur orange sur la carte.
+- Les gardes situées hors des 50 pharmacies `nearby` sont ajoutées à la liste (distance prise à 0 si le serveur n'en fournit pas).
+- Sans aucune garde, l'interface affiche « Aucune pharmacie de garde trouvée parmi les pharmacies proches. »
+
+### Données de démonstration (sans import OSM)
+
+Pour une démo rapide, depuis la racine du projet :
+
+```bash
+docker compose exec -T pharmacy-db sh -c 'psql -U "$POSTGRES_USER" -d pharmacydb' < pharmacy-service/scripts/demo-pharmacies.sql
+docker compose exec -T pharmacy-db sh -c 'psql -U "$POSTGRES_USER" -d pharmacydb' < pharmacy-service/scripts/demo-gardes.sql
+```
+
+`demo-pharmacies.sql` crée des pharmacies fictives, et `demo-gardes.sql` met les 5 plus proches du centre de garde pour une semaine. À ne pas charger avant l'import OSM : la table ne serait plus vide et `ONLY_IF_EMPTY` sauterait l'import.
+
+## Administration des pharmacies (US21, EF06)
+
+| Méthode | Chemin | Rôle | Réponses |
+|---|---|---|---|
+| `GET` | `/api/pharmacies/admin/pending` | `ADMIN` | `200`, `401`, `403` |
+| `POST` | `/api/pharmacies/admin/{id}/validate` | `ADMIN` | `200`, `400` si l’identifiant est mal formé, `401`, `403`, `404`, `409` |
+
+La liste contient au plus 100 pharmacies au statut `PENDING`, ordonnées par date d’inscription, avec seulement `id`, `name`, `address`, `licenseNumber` et `createdAt`. La validation passe la pharmacie à `APPROVED` par une mise à jour atomique conditionnée par `status = 'PENDING'`. Une pharmacie inconnue renvoie `404`; une pharmacie existante qui n’est plus en attente renvoie `409`. Les pharmacies OSM `UNVERIFIED` ne sont pas modifiées.
+
+Cette fonctionnalité ne rejette pas les inscriptions et n’envoie pas de notification. Elle ne conserve pas l’identité de l’administrateur ni une date de validation. Les opérations de stock, de gardes et de réponse d’un pharmacien propriétaire d’une pharmacie `PENDING` ne sont pas modifiées.
+
+### Compte administrateur de démonstration
+
+Créer d’abord un compte par le parcours habituel, puis promouvoir ce compte depuis la base d’authentification `auth-service` avec un accès administrateur à PostgreSQL :
+
+```sql
+UPDATE users SET role = 'ADMIN' WHERE email = '<EMAIL_DE_DEMO>';
+```
+
+Utiliser l’adresse du compte de démonstration à la place du marqueur. Le compte doit se déconnecter puis se reconnecter pour obtenir un jeton portant le rôle `ADMIN`. Aucun mot de passe ni secret n’est requis dans le dépôt.

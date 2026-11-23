@@ -52,7 +52,8 @@ public class PrescriptionUploadController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Parameter(description = "Photo ou PDF de l'ordonnance") @RequestPart("file") MultipartFile file,
             @Parameter(description = "Consentement du patient (RG06)")
-            @RequestParam(name = "consent", defaultValue = "false") boolean consent) {
+            @RequestParam(name = "consent", defaultValue = "false") boolean consent,
+            @RequestParam(name = "profileId", required = false) UUID profileId) {
 
         // 1. Qui es-tu ? (401 / 403)
         UUID patientId = patientJwtService.authenticatedPatientId(authorization);
@@ -71,7 +72,9 @@ public class PrescriptionUploadController {
         }
 
         // 4. Valider, enregistrer, chiffrer
-        Prescription prescription = storageService.store(patientId, content, file.getOriginalFilename(), true);
+        Prescription prescription = profileId == null
+                ? storageService.store(patientId, content, file.getOriginalFilename(), true)
+                : storageService.store(patientId, content, file.getOriginalFilename(), true, profileId);
 
         // 5. 201 Created + adresse de la nouvelle ordonnance
         return ResponseEntity

@@ -16,6 +16,8 @@ export interface LigneOrdonnance {
   quantite?: number | null;
   /** Confirmation explicite du nombre de conditionnements pour l'estimation US17. */
   quantiteConfirmee?: boolean;
+  /** US26 : médicament ajouté à la main par le patient (lecture échouée ou ligne oubliée par l'IA). */
+  manuelle?: boolean;
 }
 
 export type Niveau = 'vert' | 'orange' | 'rouge';
@@ -88,6 +90,32 @@ export class OrdonnanceService {
         quantiteConfirmee: false,
       })),
     );
+  }
+
+  /**
+   * US26 / EF10 : ajoute un médicament saisi à la main (choisi dans le catalogue officiel, RG02).
+   * Utilisé quand la lecture échoue ou quand l'IA a oublié une ligne. La quantité reste à confirmer (US17).
+   */
+  ajouterManuel(produit: Produit, quantite = 1): void {
+    this.lignes.update((lignes) => [
+      ...lignes,
+      {
+        id: lignes.reduce((max, l) => Math.max(max, l.id), 0) + 1,
+        texteLu: 'Saisi à la main',
+        score: 1,
+        suggestions: [],
+        choix: produit,
+        supprimee: false,
+        quantite,
+        quantiteConfirmee: false,
+        manuelle: true,
+      },
+    ]);
+  }
+
+  /** US26 : repart d'une ordonnance vide (saisie entièrement manuelle). */
+  vider(): void {
+    this.lignes.set([]);
   }
 
   choisir(id: number, produit: Produit): void {

@@ -1,0 +1,33 @@
+{
+  "file": "ordo_04_cardio_qsp.png",
+  "category": "traitement long",
+  "description": "4 médicaments, quantité exprimée en « QSP 3 mois »",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Kardegic",
+      "dosage": "75 mg",
+      "quantity": 3,
+      "inCatalogue": true
+    },
+    {
+      "name": "Amlor",
+      "dosage": "5 mg",
+      "quantity": 3,
+      "inCatalogue": true
+    },
+    {
+      "name": "Coversyl",
+      "dosage": "5 mg",
+      "quantity": 3,
+      "inCatalogue": true
+    },
+    {
+      "name": "Crestor",
+      "dosage": "10 mg",
+      "quantity": 3,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

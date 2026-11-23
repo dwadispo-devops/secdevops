@@ -1,75 +1,255 @@
 <main class="review">
-  <h1>Demandes reçues par mes pharmacies</h1>
-  <a routerLink="/pharmacien/connexion">Se connecter / changer de compte</a>
-  <a routerLink="/pharmacien/gardes">Gérer mes gardes</a>
-  <p>Consultez l’ordonnance et envoyez une réponse au patient. Les prix sont exprimés en DH.</p>
-  <button type="button" (click)="reload()" [disabled]="loading() || sending()">Actualiser les demandes</button>
-  @if (error()) { <p role="alert" class="error">{{ error() }}</p> }
-  @if (success()) { <p role="status" class="success">{{ success() }}</p> }
-  @if (loading()) { <p role="status">Chargement des demandes…</p> }
-  <div class="columns">
-    <section aria-label="Liste des demandes">
-      @for (r of requests(); track r.requestId + r.pharmacyId) {
-        <button class="request" type="button" [disabled]="sending()" (click)="select(r)"
-                [attr.aria-pressed]="detail()?.request?.requestId === r.requestId && detail()?.request?.pharmacyId === r.pharmacyId">
-          <strong>{{ r.pharmacyName }}</strong>
-          <span>{{ r.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
-          <span>{{ label(r.status) }}</span>
-        </button>
-      } @empty {
-        @if (!loading() && !error()) { <p>Aucune demande reçue.</p> }
+
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">ESPACE PROFESSIONNEL</span>
+      <h1>Demandes reçues</h1>
+      <p>Gérez les demandes de disponibilité et répondez à vos patients.</p>
+    </div>
+    <button class="refresh-btn" type="button"
+            (click)="reload()" [disabled]="loading() || sending()">
+      ↻ {{ loading() ? 'Actualisation…' : 'Actualiser' }}
+    </button>
+  </header>
+
+  <nav class="quick-links" aria-label="Navigation pharmacien">
+    <a routerLink="/pharmacien/dashboard">Tableau de bord</a>
+    <a routerLink="/pharmacien/stock">Mon stock</a>
+    <a routerLink="/pharmacien/gardes">Mes gardes</a>
+    <a routerLink="/pharmacien/connexion">Changer de compte</a>
+  </nav>
+
+  @if (error()) {
+    <div role="alert" class="alert error">{{ error() }}</div>
+  }
+  @if (success()) {
+    <div role="status" class="alert success">✓ {{ success() }}</div>
+  }
+
+  <section class="stats">
+    <article class="stat-card">
+      <span class="stat-icon">▤</span>
+      <div>
+        <span class="stat-label">Demandes reçues</span>
+        <strong>{{ requests().length }}</strong>
+      </div>
+    </article>
+    <article class="stat-card waiting">
+      <span class="stat-icon">◷</span>
+      <div>
+        <span class="stat-label">En attente</span>
+        <strong>{{ requests().filter(r => r.status === 'PENDING').length }}</strong>
+      </div>
+    </article>
+    <article class="stat-card completed">
+      <span class="stat-icon">✓</span>
+      <div>
+        <span class="stat-label">Traitées</span>
+        <strong>{{ requests().filter(r => r.status !== 'PENDING').length }}</strong>
+      </div>
+    </article>
+  </section>
+
+  <div class="workspace">
+
+    <section class="requests-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Liste des demandes</h2>
+          <p>Sélectionnez une demande pour voir ses détails.</p>
+        </div>
+        <span class="count">{{ requests().length }}</span>
+      </div>
+
+      @if (loading()) {
+        <p class="empty-state">Chargement des demandes…</p>
       }
+
+      <div class="request-list">
+        @for (r of requests(); track r.requestId + r.pharmacyId) {
+          <button class="request-card" type="button"
+                  [disabled]="sending()"
+                  [class.selected]="detail()?.request?.requestId === r.requestId && detail()?.request?.pharmacyId === r.pharmacyId"
+                  [attr.aria-pressed]="detail()?.request?.requestId === r.requestId && detail()?.request?.pharmacyId === r.pharmacyId"
+                  (click)="select(r)">
+
+            <div class="request-top">
+              <span class="request-pharmacy">{{ r.pharmacyName }}</span>
+              <span class="status"
+                    [class.pending]="r.status === 'PENDING'"
+                    [class.available]="r.status === 'AVAILABLE'"
+                    [class.unavailable]="r.status === 'UNAVAILABLE'">
+                {{ label(r.status) }}
+              </span>
+            </div>
+
+            <span class="request-date">{{ r.createdAt | date:'dd/MM/yyyy à HH:mm' }}</span>
+            <span class="request-reference">
+              Réf. {{ r.requestId.slice(0, 8) }}…
+            </span>
+            <span class="view-request">Consulter la demande →</span>
+          </button>
+        } @empty {
+          @if (!loading() && !error()) {
+            <div class="empty-state">
+              <span class="empty-icon">▤</span>
+              <strong>Aucune demande reçue</strong>
+              <p>Les nouvelles demandes de vos patients apparaîtront ici.</p>
+            </div>
+          }
+        }
+      </div>
     </section>
-    <section aria-label="Détail de la demande" aria-live="polite">
-      @if (detailLoading()) { <p>Chargement du détail…</p> }
+
+    <section class="detail-panel" aria-label="Détail de la demande" aria-live="polite">
+
+      @if (detailLoading()) {
+        <div class="empty-state">Chargement du détail…</div>
+      }
+
       @if (detail(); as d) {
-        <h2>{{ d.request.pharmacyName }} — {{ label(d.request.status) }}</h2>
-        <p class="reference">Référence : {{ d.request.requestId }}</p>
-        <h3>Médicaments demandés par le patient</h3>
-        <ul>@for (m of d.medications; track $index) { <li>{{ m.name }} — quantité {{ m.quantity }}</li> }</ul>
-        <h3>Ordonnance originale</h3>
-        @if (prescriptionError()) { <p role="status">{{ prescriptionError() }}</p> }
-        @if (imageError()) { <p role="status">{{ imageError() }}</p> }
-        @if (prescription(); as p) {
-          @if (!p.imageAvailable) { <p>Image non fournie ou supprimée.</p> }
-          @if (imageUrl(); as url) {
-            @if (p.mediaType === 'application/pdf') {
-              <a [href]="url" target="_blank" rel="noopener">Ouvrir l’ordonnance PDF</a>
+        <div class="detail-heading">
+          <div>
+            <span class="eyebrow">DÉTAIL DE LA DEMANDE</span>
+            <h2>{{ d.request.pharmacyName }}</h2>
+          </div>
+          <span class="status"
+                [class.pending]="d.request.status === 'PENDING'"
+                [class.available]="d.request.status === 'AVAILABLE'"
+                [class.unavailable]="d.request.status === 'UNAVAILABLE'">
+            {{ label(d.request.status) }}
+          </span>
+        </div>
+
+        <div class="reference-box">
+          <span>Référence de la demande</span>
+          <strong>{{ d.request.requestId }}</strong>
+        </div>
+
+        <div class="detail-section">
+          <h3> Médicaments demandés</h3>
+          @if (d.medications.length) {
+            <div class="medication-list">
+              @for (m of d.medications; track $index) {
+                <div class="medication-item">
+                  <span>{{ m.name }}</span>
+                  <strong>Quantité : {{ m.quantity }}</strong>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="muted">Aucun médicament renseigné.</p>
+          }
+        </div>
+
+        <div class="detail-section prescription-section">
+          <h3>Ordonnance originale</h3>
+
+          @if (prescriptionError()) {
+            <p class="alert error" role="status">{{ prescriptionError() }}</p>
+          }
+          @if (imageError()) {
+            <p class="alert error" role="status">{{ imageError() }}</p>
+          }
+
+          @if (prescription(); as p) {
+            @if (!p.imageAvailable) {
+              <p class="muted">Image non fournie ou supprimée.</p>
+            }
+            @if (imageUrl(); as url) {
+              @if (p.mediaType === 'application/pdf') {
+                <a class="document-link" [href]="url" target="_blank" rel="noopener">
+                  ↗ Ouvrir l'ordonnance PDF
+                </a>
+              } @else {
+                <img class="prescription-image" [src]="url"
+                     alt="Ordonnance originale envoyée par le patient"
+                     (error)="imageError.set('Impossible d’afficher cette image.')" />
+              }
+            }
+
+            <h4>Texte reconnu par l'intelligence artificielle</h4>
+            @if (p.ocrText) {
+              <pre class="ocr-text">{{ p.ocrText }}</pre>
             } @else {
-              <img [src]="url" alt="Ordonnance originale envoyée par le patient" (error)="imageError.set('Impossible d’afficher cette image.')" />
+              <p class="muted">Aucun texte OCR disponible. Vérifiez l'image originale.</p>
+            }
+
+            @if (p.medications.length) {
+              <h4>Médicaments reconnus — à vérifier</h4>
+              <div class="medication-list">
+                @for (m of p.medications; track $index) {
+                  <div class="medication-item">
+                    <span>{{ m.name || m.rawText }} {{ m.dosage }}</span>
+                    <strong>{{ m.status }}</strong>
+                  </div>
+                }
+              </div>
             }
           }
-          <h3>Texte lu par l’IA</h3>
-          @if (p.ocrText) { <pre>{{ p.ocrText }}</pre> } @else { <p>Aucun texte OCR disponible. Vérifiez l’image originale.</p> }
-          @if (p.medications.length) {
-            <h3>Médicaments reconnus par l’IA — à vérifier</h3>
-            <ul>@for (m of p.medications; track $index) { <li>{{ m.name || m.rawText }} {{ m.dosage }} ({{ m.status }})</li> }</ul>
-          }
-        }
+        </div>
+
         @if (d.request.status === 'PENDING') {
-          <form (ngSubmit)="submit()">
-            <fieldset [disabled]="sending()">
-              <legend>Répondre au patient</legend>
-              <label for="availability">Disponibilité</label>
-              <select id="availability" name="availability" [(ngModel)]="availability">
-                <option value="AVAILABLE">Disponible</option><option value="UNAVAILABLE">Indisponible</option>
-              </select>
-              @if (availability === 'AVAILABLE') {
-                <label for="price">Prix total (DH)</label>
-                <input id="price" name="price" type="text" inputmode="decimal" [(ngModel)]="price" required pattern="[0-9]{1,10}(\.[0-9]{1,2})?" />
-              }
-              <label for="comment">Commentaire (facultatif)</label>
-              <textarea id="comment" name="comment" [(ngModel)]="comment" maxlength="1000" rows="3"></textarea>
-              <button type="submit" [disabled]="!valid() || sending()">{{ sending() ? 'Enregistrement…' : 'Envoyer ma réponse' }}</button>
-            </fieldset>
-          </form>
+          <div class="response-section">
+            <span class="eyebrow">ACTION REQUISE</span>
+            <h3>Répondre au patient</h3>
+            <p>Indiquez si les médicaments sont disponibles dans votre pharmacie.</p>
+
+            <form (ngSubmit)="submit()">
+              <fieldset [disabled]="sending()">
+
+                <label for="availability">Disponibilité des médicaments</label>
+                <select id="availability" name="availability"
+                        [(ngModel)]="availability">
+                  <option value="AVAILABLE">Disponible</option>
+                  <option value="UNAVAILABLE">Indisponible</option>
+                </select>
+
+                @if (availability === 'AVAILABLE') {
+                  <label for="price">Prix total (DH)</label>
+                  <input id="price" name="price" type="text"
+                         inputmode="decimal" placeholder="Ex. : 150.00"
+                         [(ngModel)]="price" required
+                         pattern="[0-9]{1,10}(\.[0-9]{1,2})?" />
+                }
+
+                <label for="comment">Commentaire (facultatif)</label>
+                <textarea id="comment" name="comment"
+                          [(ngModel)]="comment" maxlength="1000"
+                          rows="3" placeholder="Ajoutez une précision au patient…"></textarea>
+
+                <div class="form-footer">
+                  <span>{{ comment.length }}/1000 caractères</span>
+                  <button class="submit-btn" type="submit"
+                          [disabled]="!valid() || sending()">
+                    {{ sending() ? 'Enregistrement…' : 'Envoyer ma réponse →' }}
+                  </button>
+                </div>
+              </fieldset>
+            </form>
+          </div>
         } @else {
-          <h3>Réponse enregistrée</h3>
-          @if (d.request.price !== null) { <p>Prix total : {{ d.request.price | number:'1.2-2' }} DH</p> }
-          @if (d.request.comment) { <p>{{ d.request.comment }}</p> }
-          <p>{{ d.request.respondedAt | date:'dd/MM/yyyy HH:mm' }}</p>
+          <div class="response-section recorded">
+            <span class="eyebrow">RÉPONSE ENREGISTRÉE</span>
+            <h3>Votre réponse a été envoyée</h3>
+            @if (d.request.price !== null) {
+              <p>Prix total : <strong>{{ d.request.price | number:'1.2-2' }} DH</strong></p>
+            }
+            @if (d.request.comment) {
+              <p>{{ d.request.comment }}</p>
+            }
+            <p class="muted">Répondu le {{ d.request.respondedAt | date:'dd/MM/yyyy à HH:mm' }}</p>
+          </div>
         }
-      } @else { @if (!detailLoading()) { <p>Sélectionnez une demande pour consulter son ordonnance.</p> } }
+      } @else {
+        @if (!detailLoading()) {
+          <div class="empty-state detail-empty">
+            <span class="empty-icon">☝</span>
+            <strong>Sélectionnez une demande</strong>
+            <p>Choisissez une demande dans la liste pour consulter les médicaments, l'ordonnance et envoyer votre réponse.</p>
+          </div>
+        }
+      }
     </section>
   </div>
 </main>

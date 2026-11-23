@@ -1,3 +1,4 @@
+import { AuthService } from '../services/auth.service';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -33,13 +34,14 @@ export const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d).{8,72}$/;
     </main>
   `,
   styles: [`main { max-width: 480px; margin: 3rem auto; padding: 1.5rem; } form { display: grid; gap: .6rem; }
-    input, button { padding: .75rem; font: inherit; } h1 { color: #176b55; } small { color: #555; } .ko { color: #a11525; }
-    button { margin-top: .6rem; background: #176b55; color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
-    button:disabled { opacity: .6; cursor: default; } [role=alert] { color: #a11525; } a { color: #176b55; }`],
+    input, button { padding: .75rem; font: inherit; } h1 { color: var(--couleur-bandeau); } small { color: #555; } .ko { color: #a11525; }
+    button { margin-top: .6rem; background: var(--couleur-bandeau); color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: default; } [role=alert] { color: #a11525; } a { color: var(--couleur-or-texte); }`],
 })
 export class RegisterPage {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
   firstName = ''; lastName = ''; email = ''; password = ''; confirm = '';
   readonly busy = signal(false); readonly error = signal('');
 
@@ -61,7 +63,11 @@ export class RegisterPage {
         this.busy.set(false); this.password = ''; this.confirm = '';
         sessionStorage.setItem('access_token', result.accessToken);
         if (result.refreshToken) sessionStorage.setItem('refresh_token', result.refreshToken);
-        void this.router.navigateByUrl('/scan');
+        // Met à jour le menu (connected, profile) comme après une connexion, puis ouvre le scan
+        this.auth.loadProfile().subscribe({
+          next: () => void this.router.navigateByUrl('/scan'),
+          error: () => void this.router.navigateByUrl('/scan'),
+        });
       },
       error: e => {
         this.busy.set(false);

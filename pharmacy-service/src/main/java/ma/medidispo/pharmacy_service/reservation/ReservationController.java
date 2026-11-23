@@ -46,6 +46,11 @@ public class ReservationController {
         return service.current(user(auth), request);
     }
 
+    @PostMapping("/api/availability-requests/{request}/reservations/{id}/cancel")
+    public Reservation cancel(Authentication auth, @PathVariable UUID request, @PathVariable UUID id) {
+        return service.cancel(user(auth), request, id);
+    }
+
     // --- US13 : Pharmacien ---
 
     @GetMapping("/api/pharmacies/{pharmacy}/reservations/{code}")

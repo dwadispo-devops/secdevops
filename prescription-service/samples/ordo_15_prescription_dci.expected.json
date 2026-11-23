@@ -1,0 +1,21 @@
+{
+  "file": "ordo_15_prescription_dci.png",
+  "category": "DCI / hors catalogue",
+  "description": "Prescription en DCI (nom de molécule, pas de marque) : le catalogue est cherché par nom de marque",
+  "isPrescription": true,
+  "expectedMedications": [
+    {
+      "name": "Paracétamol",
+      "dosage": "1 g",
+      "quantity": 1,
+      "inCatalogue": false
+    },
+    {
+      "name": "Spasfon",
+      "dosage": "80 mg",
+      "quantity": 1,
+      "inCatalogue": true
+    }
+  ],
+  "mustNotContain": []
+}

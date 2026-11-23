@@ -4,10 +4,11 @@ import { Etat, LigneOrdonnance, OrdonnanceService, Produit, etatDe } from '../se
 import { CatalogueService } from '../services/catalogue.service';
 import { FormsModule } from '@angular/forms';
 import { PrescriptionEstimateComponent } from '../components/prescription-estimate';
+import { GeneriquesComponent } from '../components/generiques';
 
 @Component({
   selector: 'app-verification',
-  imports: [RouterLink, FormsModule, PrescriptionEstimateComponent],
+  imports: [RouterLink, FormsModule, PrescriptionEstimateComponent, GeneriquesComponent],
   styles: [
     `
       .intro { max-width: 65ch; }
@@ -65,6 +66,17 @@ import { PrescriptionEstimateComponent } from '../components/prescription-estima
       }
       .mini.danger { border-color: #fecaca; color: #b91c1c; }
       .vide, .aide { margin: 0.5rem 0 0; color: #475569; }
+      .ajout { margin: 1.5rem 0; padding: 1rem 1.25rem; border: 1px dashed var(--couleur-bordure); border-radius: var(--rayon); }
+      .ajout h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+      .ajout label { display: block; margin: 0.25rem 0; font-weight: 600; }
+      .ajout input {
+        width: 100%;
+        max-width: 28rem;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid var(--couleur-bordure);
+        border-radius: 8px;
+        font: inherit;
+      }
       .pied { display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
       button.btn { border: 0; font: inherit; cursor: pointer; }
       button.btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -85,7 +97,7 @@ import { PrescriptionEstimateComponent } from '../components/prescription-estima
       @if (service.lignes().length === 0) {
         <p class="vide" role="status">
           Aucune ordonnance à vérifier. <a routerLink="/scan">Scanner une ordonnance</a>
-          ou <a routerLink="/demande-disponibilite">saisir vos médicaments à la main</a>.
+          ou ajoutez vos médicaments à la main ci-dessous.
         </p>
       }
 
@@ -94,10 +106,16 @@ import { PrescriptionEstimateComponent } from '../components/prescription-estima
           @let etat = etatDe(ligne);
           <li class="ligne" [attr.data-etat]="etat">
             <div class="entete">
-              <p class="lu">Lu : <strong>« {{ ligne.texteLu }} »</strong></p>
+              @if (ligne.manuelle) {
+                <p class="lu"><strong>Ajouté à la main</strong></p>
+              } @else {
+                <p class="lu">Lu : <strong>« {{ ligne.texteLu }} »</strong></p>
+              }
               <span class="badge" [attr.data-etat]="etat">{{ libelle(etat) }}</span>
             </div>
-            <p class="confiance">Confiance de la lecture : {{ confiance(ligne) }} %</p>
+            @if (!ligne.manuelle) {
+              <p class="confiance">Confiance de la lecture : {{ confiance(ligne) }} %</p>
+            }
 
             @if (ligne.supprimee) {
               <button type="button" class="mini" (click)="service.retablir(ligne.id)">
@@ -111,6 +129,8 @@ import { PrescriptionEstimateComponent } from '../components/prescription-estima
                   Aucun médicament confirmé pour cette ligne.
                 }
               </p>
+              <!-- US16 : génériques moins chers du médicament retenu -->
+              @if (ligne.choix && enCorrection() !== ligne.id) { <app-generiques [code]="ligne.choix.id" /> }
 
               <label [attr.for]="'quantite-' + ligne.id">Quantité de conditionnements (boîtes, flacons…)</label>
               <input type="number" [id]="'quantite-' + ligne.id" min="1" max="10000" step="1"
@@ -175,6 +195,32 @@ import { PrescriptionEstimateComponent } from '../components/prescription-estima
         }
       </ul>
 
+      <!-- US26 / EF10 : saisie manuelle, toujours possible (lecture échouée, ligne oubliée par l'IA, IA indisponible) -->
+      <section class="ajout" aria-labelledby="titre-ajout">
+        <h2 id="titre-ajout">
+          {{ service.lignes().length === 0 ? 'Saisir mes médicaments à la main' : 'Un médicament manque ? Ajoutez-le à la main' }}
+        </h2>
+        <label for="ajout-recherche">Rechercher dans le catalogue officiel</label>
+        <input
+          id="ajout-recherche"
+          type="search"
+          autocomplete="off"
+          placeholder="Nom du médicament (au moins 2 lettres)"
+          [value]="termeAjout()"
+          (input)="setTermeAjout($event)"
+        />
+        @if (resultatsAjout().length > 0) {
+          <ul class="choix">
+            @for (r of resultatsAjout(); track r.id) {
+              <li><button type="button" (click)="ajouter(r)">{{ r.nom }}</button></li>
+            }
+          </ul>
+        } @else if (termeAjout().trim().length >= 2 && !rechercheAjoutEnCours()) {
+          <p class="vide">Aucun médicament du catalogue ne correspond. Vérifiez l'orthographe sur votre ordonnance.</p>
+        }
+        @if (ajoutConfirme()) { <p class="aide" role="status">{{ ajoutConfirme() }}</p> }
+      </section>
+
       @if (service.lignes().length > 0) { <app-prescription-estimate [lines]="service.lignes()" /> }
 
       <div class="pied">
@@ -191,7 +237,11 @@ import { PrescriptionEstimateComponent } from '../components/prescription-estima
 
       @if (!service.peutContinuer()) {
         <p class="aide" role="status">
-          Confirmez ou supprimez chaque ligne pour pouvoir continuer.
+          @if (service.lignes().length === 0) {
+            Ajoutez au moins un médicament pour pouvoir continuer.
+          } @else {
+            Confirmez ou supprimez chaque ligne pour pouvoir continuer.
+          }
         </p>
       }
     </section>
@@ -245,6 +295,37 @@ export class VerificationPage {
 
   protected fermer(): void {
     this.enCorrection.set(null);
+  }
+
+  // ------------------------------------------------------------ US26 : ajout manuel
+  protected readonly termeAjout = signal('');
+  protected readonly resultatsAjout = signal<Produit[]>([]);
+  protected readonly rechercheAjoutEnCours = signal(false);
+  protected readonly ajoutConfirme = signal('');
+
+  protected setTermeAjout(event: Event): void {
+    const valeur = (event.target as HTMLInputElement).value;
+    this.termeAjout.set(valeur);
+    this.ajoutConfirme.set('');
+    if (valeur.trim().length < 2) {
+      this.resultatsAjout.set([]);
+      return;
+    }
+    this.rechercheAjoutEnCours.set(true);
+    this.catalogue.rechercher(valeur).subscribe((produits) => {
+      // ignore une réponse arrivée après une saisie plus récente
+      if (this.termeAjout() === valeur) {
+        this.resultatsAjout.set(produits);
+        this.rechercheAjoutEnCours.set(false);
+      }
+    });
+  }
+
+  protected ajouter(produit: Produit): void {
+    this.service.ajouterManuel(produit);
+    this.termeAjout.set('');
+    this.resultatsAjout.set([]);
+    this.ajoutConfirme.set(`${produit.nom} a été ajouté. Indiquez et confirmez la quantité.`);
   }
 
   protected choisir(ligne: LigneOrdonnance, produit: Produit): void {

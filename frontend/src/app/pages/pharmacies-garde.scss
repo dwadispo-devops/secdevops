@@ -13,17 +13,17 @@
   margin-bottom: 1.25rem;
 
   h1 { margin: 0.25rem 0; }
-  .eyebrow { color: #079779; font-weight: 600; font-size: 0.85rem; }
-  .date-label { margin: 0; color: #5b6770; }
+  .eyebrow { color: var(--couleur-or-texte); font-weight: 600; font-size: 0.85rem; }
+  .date-label { margin: 0; color: #5f594d; }
 }
 
 .location-button {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  border: 1px solid #079779;
+  border: 1px solid var(--couleur-or);
   background: #fff;
-  color: #079779;
+  color: var(--couleur-or-texte);
   border-radius: 999px;
   padding: 0.55rem 1rem;
   font-weight: 600;
@@ -32,7 +32,7 @@
   &:disabled { opacity: 0.6; cursor: default; }
 }
 
-.note { color: #8a5a00; background: #fff6e0; padding: 0.6rem 0.8rem; border-radius: 8px; }
+.note { color: var(--couleur-or-texte); background: #f3ecdb; padding: 0.6rem 0.8rem; border-radius: 8px; }
 
 .garde-list { display: flex; flex-direction: column; gap: 0.75rem; }
 
@@ -42,7 +42,7 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 1rem;
-  border: 1px solid #e3e8ea;
+  border: 1px solid var(--couleur-bordure);
   border-radius: 12px;
   background: #fff;
 }
@@ -52,9 +52,9 @@
   flex-direction: column;
   gap: 0.15rem;
 
-  small { color: #5b6770; }
-  .until { color: #079779; font-weight: 600; }
-  .distance { color: #2878e8; }
+  small { color: #5f594d; }
+  .until { color: var(--couleur-or-texte); font-weight: 600; }
+  .distance { color: var(--couleur-or-texte); }
 }
 
 .garde-actions { display: flex; align-items: center; gap: 0.5rem; }
@@ -62,12 +62,12 @@
 .action {
   padding: 0.5rem 0.9rem;
   border-radius: 8px;
-  background: #079779;
+  background: var(--couleur-bandeau);
   color: #fff;
   text-decoration: none;
   font-weight: 600;
 
-  &.secondary { background: #fff; color: #079779; border: 1px solid #079779; }
+  &.secondary { background: #fff; color: var(--couleur-or-texte); border: 1px solid var(--couleur-or); }
 }
 
 .message-state {
@@ -77,11 +77,11 @@
   gap: 0.5rem;
   padding: 2rem 1rem;
   text-align: center;
-  color: #5b6770;
+  color: #5f594d;
 
   &.error-state button {
     border: 0;
-    background: #079779;
+    background: var(--couleur-bandeau);
     color: #fff;
     border-radius: 8px;
     padding: 0.5rem 1rem;
@@ -92,8 +92,8 @@
 .loader {
   width: 24px;
   height: 24px;
-  border: 3px solid #d8e3e1;
-  border-top-color: #079779;
+  border: 3px solid var(--couleur-bordure);
+  border-top-color: var(--couleur-or);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

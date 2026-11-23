@@ -1,0 +1,8 @@
+{
+  "file": "ordo_17_pas_une_ordonnance.png",
+  "category": "contrôle (non-ordonnance)",
+  "description": "Facture de pharmacie : le service doit indiquer que ce n'est pas une ordonnance",
+  "isPrescription": false,
+  "expectedMedications": [],
+  "mustNotContain": []
+}

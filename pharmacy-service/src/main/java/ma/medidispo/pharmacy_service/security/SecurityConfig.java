@@ -53,6 +53,8 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        // TS07 : lecture de la documentation de l'API (coupée en production par SWAGGER_ENABLED=false)
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
 
                         // Page d'erreur interne de Spring : sans cette ligne,
@@ -80,7 +82,13 @@ public class SecurityConfig {
                         // US15 : le pharmacien gère les gardes de ses pharmacies
                         .requestMatchers("/api/pharmacies/me/gardes", "/api/pharmacies/me/gardes/**").hasRole("PHARMACIEN")
 
+                        // US22 : alertes de retour en stock, réservées au patient
+                        .requestMatchers("/api/alertes", "/api/alertes/**").hasRole("PATIENT")
+
                         // US03 : mes pharmacies
+                        // US25 : tableau de bord réservé au pharmacien
+                        .requestMatchers(HttpMethod.GET, "/api/pharmacies/me/dashboard").hasRole("PHARMACIEN")
+
                         .requestMatchers(HttpMethod.GET, "/api/pharmacies/me").hasRole("PHARMACIEN")
 
                         // Consultation par identifiant : utilisateur connecté

@@ -56,8 +56,10 @@ public class PharmacyController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PharmacyPublic> getById(@PathVariable UUID id) {
-        return repository.findById(id)
+    public ResponseEntity<PharmacyPublic> getById(Authentication auth, @PathVariable UUID id) {
+        boolean admin = auth.getAuthorities().stream().anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+        UUID owner = (UUID) auth.getPrincipal();
+        return (admin ? repository.findById(id) : repository.findVisibleById(id, owner))
                 .map(PharmacyPublic::from)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

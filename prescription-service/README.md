@@ -107,8 +107,8 @@ mvn spring-boot:run          # port 8085
 
 ```bash
 mvn verify                                  # tests + couverture JaCoCo (target/site/jacoco)
-python3 scripts/generate_sample_prescriptions.py samples
-python3 scripts/evaluate_poc.py http://localhost:8085 samples
+python3 scripts/generate_sample_prescriptions.py samples   # jeu de 20 documents de test (TS06)
+python3 scripts/evaluate_poc.py http://localhost:8085 samples   # mesure + rapport dans reports/
 ```
 
 Les tests n'appellent ni Gemini ni le vrai catalogue : le modèle est simulé (Mockito) et medication-service
@@ -118,6 +118,45 @@ les cas ambigus, les lignes illisibles, la panne du catalogue et le fait qu'aucu
 
 Le script d'évaluation affiche, pour chaque ordonnance fictive, le texte lu, la couleur et le score de chaque
 ligne, puis le taux de reconnaissance global (objectif ENF03 : ≥ 80 %).
+
+## Qualité de lecture sur 20 ordonnances de test (TS06)
+
+Livrable du Sprint 4 : **rapport de qualité de lecture de l'IA** →
+[`reports/ts06-rapport-qualite-lecture.md`](reports/ts06-rapport-qualite-lecture.md)
+(résultats bruts : `reports/ts06-resultats.json`). Le rapport est **produit par le script**, à partir d'une
+vraie mesure : il se relance à chaque évolution de la lecture (prompt, modèle, score).
+
+**Jeu de test** (`samples/`, généré par `scripts/generate_sample_prescriptions.py`, données 100 % fictives) :
+
+| Documents | Cas testé |
+|---|---|
+| 01, 13 | ordonnances simples et longues (3 et 5 médicaments) |
+| 02, 20 | pédiatrie : sirops, gouttes, pourcentages |
+| 04, 14 | quantités « QSP 3 mois » et nombre de boîtes en toutes lettres |
+| 05, 06 | abréviations (cp, bte, U) et formes variées (comprimés, sachets, suspension) |
+| 07, 08 | polices à empattement et « machine à écrire », dosage en µg |
+| 09, 10, 19 | photos floue et inclinée, peu contrastée + JPEG compressé, sombre et déformée |
+| 11, 16 | cachet du médecin sur le texte, ordonnance en deux colonnes |
+| 03, 12 | injection de prompt (français, anglais) : aucun produit inventé ne doit être proposé |
+| 15, 18, (02) | prescription en DCI et produits absents du catalogue : jamais validés automatiquement |
+| 17 | facture de pharmacie : doit être signalée comme « pas une ordonnance » |
+
+Chaque fichier `*.expected.json` décrit le résultat attendu (nom, dosage, nombre de boîtes, présence dans le
+catalogue, mots interdits). Les documents 01 à 03 sont ceux du Sprint 1, conservés pour comparer les sprints.
+
+**Indicateurs calculés** : médicaments reconnus dans le catalogue (ENF03, ≥ 80 %), produits inventés (O2, 0),
+injections suivies, bon dosage, reconnus directement en vert, quantités, hors catalogue non validés, détection
+des non-ordonnances, temps de lecture (ENF02, < 15 s). Le script s'arrête avec un code d'erreur si ENF03 ou
+« 0 produit inventé » ne sont pas atteints (utilisable plus tard dans un job CI manuel).
+
+```bash
+# Prérequis : medication-service (8083, catalogue importé) et prescription-service (8085) démarrés
+pip install requests pillow
+python scripts/evaluate_poc.py http://localhost:8085 samples --pause 2
+```
+
+`--pause` espace les appels pour rester dans le quota gratuit de l'API Gemini ; une réponse 503 (IA surchargée)
+est retentée une fois après 5 s.
 
 ## Structure
 
@@ -162,6 +201,8 @@ dosage invérifiable empêche le vert.
 
 - L'écran de vérification (US08) doit ajouter le champ `quantite` à son interface (déjà envoyé par ce service).
 - Bascule automatique Gemini → Ollama et OCR Tesseract : tickets à créer.
+- Si la lecture échoue, le patient peut reprendre la photo ou saisir ses médicaments à la main dans le catalogue
+  (US26, côté Angular : pages Scanner et Vérification).
 
 ---
 
@@ -241,6 +282,124 @@ npm start
 
 Puis ouvrir http://localhost:4200/scan.
 
+> Pour tester, il faut être connecté avec un compte patient : ouvrir http://localhost:4200/connexion et se connecter (voir l'US18, étape 2, pour créer le compte).
+
+---
+
+# US18 — Historique et relance des ordonnances (DEVOPS-30)
+
+Un patient connecté retrouve ses ordonnances envoyées, de la plus récente à la plus ancienne, et peut relancer la lecture de l'une d'elles sans la rescanner.
+
+## Ce qui a été ajouté
+
+- `GET /api/v1/prescriptions` : liste des ordonnances du patient connecté (`id`, `status`, `fileType`, `createdAt`, `imageAvailable`). Jeton patient obligatoire, réponse jamais mise en cache, sans `patientId` ni données de lecture.
+- Page Angular `/mes-ordonnances` : liste et bouton de relance.
+- Relance : appel de `POST /api/v1/prescriptions/{id}/read?consent=true`, puis redirection vers `/verification` avec les médicaments lus.
+
+## Tester chez soi
+
+Depuis la racine du projet.
+
+### 1. Prérequis
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+La relance utilise la lecture IA : `GEMINI_API_KEY` doit être définie dans `.env`. Sans elle, l'historique fonctionne, mais la relance échoue (503 côté service).
+
+### 2. Créer un compte patient et récupérer le jeton
+
+Le mot de passe doit faire 8 à 72 caractères avec au moins une lettre et un chiffre.
+
+```bash
+curl -s -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"patient.test@example.com","password":"Test1234","firstName":"Test","lastName":"Patient"}'
+
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"patient.test@example.com","password":"Test1234"}' \
+  | sed -E 's/.*"accessToken":"([^"]+)".*/\1/')
+echo "${TOKEN:0:20}..."
+```
+
+Si le compte existe déjà, l'inscription est refusée : passer directement à la connexion.
+
+### 3. Envoyer une ordonnance de test
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/prescriptions \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@prescription-service/samples/ordo_01_simple.png" \
+  -F "consent=true"
+```
+
+La réponse contient l'`id` de l'ordonnance (code 201).
+
+### 4. Vérifier l'historique
+
+```bash
+curl -s http://localhost:8080/api/v1/prescriptions -H "Authorization: Bearer $TOKEN"
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/api/v1/prescriptions
+```
+
+Résultat attendu : la liste JSON avec l'ordonnance envoyée, puis `401` pour l'appel sans jeton.
+
+### 5. Tester l'interface
+
+```bash
+cd frontend
+npm start
+```
+
+1. Ouvrir http://localhost:4200/connexion et se connecter avec le compte patient.
+2. Ouvrir http://localhost:4200/mes-ordonnances : la liste s'affiche.
+3. Cliquer sur le bouton de relance d'une ordonnance : la page arrive sur `/verification` avec les médicaments lus.
+
+Cas d'erreur à connaître :
+- Sans connexion, la page affiche « Connectez-vous avec votre compte patient pour consulter vos ordonnances. »
+- Jeton expiré : « Session expirée. Reconnectez-vous. »
+- Aucun médicament lu : « Aucun médicament n'a pu être relu. Réessayez ou scannez une nouvelle ordonnance. »
+
+### 6. Tests automatiques
+
+Le test `StoredPrescriptionControllerTest` vérifie le 200 sans cache, l'absence de champs sensibles et le 401 sans jeton :
+
+```bash
+cd prescription-service
+mvn verify
+```
+```
+
 > La page de connexion n'existe pas encore : pour tester, il faut mettre un jeton de patient
 > dans le navigateur (F12 → Console) :
 > `sessionStorage.setItem('access_token', '<jeton>')`
+
+---
+
+# US24 — Profils proches
+
+Le patient peut créer, renommer et supprimer des profils proches identifiés uniquement par un libellé
+(60 caractères maximum). Aucune date de naissance n'est collectée. Les profils appartiennent au compte
+patient identifié par le JWT ; aucun identifiant patient n'est accepté dans le corps ou dans l'URL.
+
+| Méthode et chemin | Rôle | Résultat |
+|---|---|---|
+| `GET /api/v1/prescriptions/profiles` | PATIENT | Profils actifs, sans cache |
+| `POST /api/v1/prescriptions/profiles` | PATIENT | Crée un profil (`{"label":"Maman"}`), réponse 201 |
+| `PATCH /api/v1/prescriptions/profiles/{id}` | PATIENT | Renomme un profil (`{"label":"Maman"}`), réponse 200 |
+| `DELETE /api/v1/prescriptions/profiles/{id}` | PATIENT | Masque le profil des choix futurs, réponse 204 |
+| `POST /api/v1/prescriptions` | PATIENT | Multipart : `file`, `consent`, et `profileId` facultatif |
+| `GET /api/v1/prescriptions?profile=all\|me\|{profileId}` | PATIENT | Historique complet, personnel ou filtré par proche |
+
+Les routes de profils renvoient `401` sans jeton valide, `403` pour un rôle autre que `PATIENT`, `404`
+pour un profil absent ou appartenant à un autre patient, `409` pour un libellé actif déjà utilisé, et
+`400` pour un libellé vide ou trop long. Les réponses d'erreur sont en français au format RFC 7807.
+
+Un profil supprimé ne peut plus être sélectionné pour un nouvel envoi. Les ordonnances déjà associées
+gardent leur profil et leur libellé dans l'historique. Les champs de profil ne sont pas renvoyés par les
+routes internes utilisées par le pharmacien. Le quota de réservations reste calculé par compte patient.
+La suppression d'un profil ne purge pas les images et ne crée pas de notification. La suppression du
+compte patient efface également ses profils, après ses ordonnances.

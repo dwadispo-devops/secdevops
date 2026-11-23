@@ -34,7 +34,7 @@ describe('PharmacistDutiesPage (US15 – mes gardes)', () => {
     const fixture = await start();
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Pharmacie Démo');
-    expect(text).toContain('du 01/01/2099 au 03/01/2099');
+    expect(text).toContain('Du 01/01/2099 au 03/01/2099');
     expect(text).toContain('À venir');
   });
 
