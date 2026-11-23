@@ -282,6 +282,97 @@ npm start
 
 Puis ouvrir http://localhost:4200/scan.
 
+> Pour tester, il faut être connecté avec un compte patient : ouvrir http://localhost:4200/connexion et se connecter (voir l'US18, étape 2, pour créer le compte).
+
+---
+
+# US18 — Historique et relance des ordonnances (DEVOPS-30)
+
+Un patient connecté retrouve ses ordonnances envoyées, de la plus récente à la plus ancienne, et peut relancer la lecture de l'une d'elles sans la rescanner.
+
+## Ce qui a été ajouté
+
+- `GET /api/v1/prescriptions` : liste des ordonnances du patient connecté (`id`, `status`, `fileType`, `createdAt`, `imageAvailable`). Jeton patient obligatoire, réponse jamais mise en cache, sans `patientId` ni données de lecture.
+- Page Angular `/mes-ordonnances` : liste et bouton de relance.
+- Relance : appel de `POST /api/v1/prescriptions/{id}/read?consent=true`, puis redirection vers `/verification` avec les médicaments lus.
+
+## Tester chez soi
+
+Depuis la racine du projet.
+
+### 1. Prérequis
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+La relance utilise la lecture IA : `GEMINI_API_KEY` doit être définie dans `.env`. Sans elle, l'historique fonctionne, mais la relance échoue (503 côté service).
+
+### 2. Créer un compte patient et récupérer le jeton
+
+Le mot de passe doit faire 8 à 72 caractères avec au moins une lettre et un chiffre.
+
+```bash
+curl -s -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"patient.test@example.com","password":"Test1234","firstName":"Test","lastName":"Patient"}'
+
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"patient.test@example.com","password":"Test1234"}' \
+  | sed -E 's/.*"accessToken":"([^"]+)".*/\1/')
+echo "${TOKEN:0:20}..."
+```
+
+Si le compte existe déjà, l'inscription est refusée : passer directement à la connexion.
+
+### 3. Envoyer une ordonnance de test
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/prescriptions \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@prescription-service/samples/ordo_01_simple.png" \
+  -F "consent=true"
+```
+
+La réponse contient l'`id` de l'ordonnance (code 201).
+
+### 4. Vérifier l'historique
+
+```bash
+curl -s http://localhost:8080/api/v1/prescriptions -H "Authorization: Bearer $TOKEN"
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/api/v1/prescriptions
+```
+
+Résultat attendu : la liste JSON avec l'ordonnance envoyée, puis `401` pour l'appel sans jeton.
+
+### 5. Tester l'interface
+
+```bash
+cd frontend
+npm start
+```
+
+1. Ouvrir http://localhost:4200/connexion et se connecter avec le compte patient.
+2. Ouvrir http://localhost:4200/mes-ordonnances : la liste s'affiche.
+3. Cliquer sur le bouton de relance d'une ordonnance : la page arrive sur `/verification` avec les médicaments lus.
+
+Cas d'erreur à connaître :
+- Sans connexion, la page affiche « Connectez-vous avec votre compte patient pour consulter vos ordonnances. »
+- Jeton expiré : « Session expirée. Reconnectez-vous. »
+- Aucun médicament lu : « Aucun médicament n'a pu être relu. Réessayez ou scannez une nouvelle ordonnance. »
+
+### 6. Tests automatiques
+
+Le test `StoredPrescriptionControllerTest` vérifie le 200 sans cache, l'absence de champs sensibles et le 401 sans jeton :
+
+```bash
+cd prescription-service
+mvn verify
+```
+```
+
 > La page de connexion n'existe pas encore : pour tester, il faut mettre un jeton de patient
 > dans le navigateur (F12 → Console) :
 > `sessionStorage.setItem('access_token', '<jeton>')`
