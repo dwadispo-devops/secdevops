@@ -4,10 +4,11 @@ import { Etat, LigneOrdonnance, OrdonnanceService, Produit, etatDe } from '../se
 import { CatalogueService } from '../services/catalogue.service';
 import { FormsModule } from '@angular/forms';
 import { PrescriptionEstimateComponent } from '../components/prescription-estimate';
+import { GeneriquesComponent } from '../components/generiques';
 
 @Component({
   selector: 'app-verification',
-  imports: [RouterLink, FormsModule, PrescriptionEstimateComponent],
+  imports: [RouterLink, FormsModule, PrescriptionEstimateComponent, GeneriquesComponent],
   styles: [
     `
       .intro { max-width: 65ch; }
@@ -128,6 +129,8 @@ import { PrescriptionEstimateComponent } from '../components/prescription-estima
                   Aucun médicament confirmé pour cette ligne.
                 }
               </p>
+              <!-- US16 : génériques moins chers du médicament retenu -->
+              @if (ligne.choix && enCorrection() !== ligne.id) { <app-generiques [code]="ligne.choix.id" /> }
 
               <label [attr.for]="'quantite-' + ligne.id">Quantité de conditionnements (boîtes, flacons…)</label>
               <input type="number" [id]="'quantite-' + ligne.id" min="1" max="10000" step="1"

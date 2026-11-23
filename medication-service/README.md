@@ -288,3 +288,63 @@ medication-service/
 - **Licence** : ODbL (Open Database License)
 - **5 917 médicaments** dans le fichier source
 - **Règles de nettoyage** : PPV/PH/PRIX_BR = 0 → NULL, DOSAGE1 virgule → point, TAUX "70%" → 70
+
+---
+
+## 7. Génériques moins chers (API REST — US16)
+
+> **Jira :** US16 — *En tant que patient, je veux voir les génériques moins chers ayant la même DCI* (EF13)
+
+```
+GET /api/medications/{code}/generiques?limit={n}      (limit : 1 à 20, 10 par défaut)
+```
+
+Un produit est proposé seulement s'il respecte **toutes** ces règles :
+
+| Règle | Détail |
+|---|---|
+| Générique | `princeps_generique = 'G'` |
+| Même DCI | insensible à la casse et aux accents (`AMOXICILLINE / ACIDE CLAVULANIQUE`) |
+| Même dosage | converti en mg : `1 G` = `1000 MG` ; associations comparées terme à terme (`1 / 125 G / MG`) |
+| Même forme | `SECABLE` ignoré, faute de la source `SUSPENTION` corrigée ; effervescent, gastro-résistant… restent différents |
+| Moins cher | **prix par unité** (comprimé, gélule, sachet…) pour comparer des boîtes de tailles différentes ; flacons et tubes comparés seulement à conditionnement identique |
+| Prix connu | les produits sans PPV sont ignorés |
+
+Les résultats sont triés du moins cher au plus cher, sans doublon (même produit sous deux codes). Chaque générique
+indique l'économie en % (arrondie vers le bas) et `moinsRembourse = true` s'il est moins bien remboursé que le
+médicament de départ. Si la liste est vide, `message` explique pourquoi (aucun générique moins cher, dosage ou prix
+absent du catalogue).
+
+```powershell
+curl.exe -s "http://localhost:8083/api/medications/6118000160182/generiques?limit=2"
+```
+
+```json
+{
+  "reference": { "code": "6118000160182", "nom": "AUGMENTIN", "dci": "AMOXICILLINE / ACIDE CLAVULANIQUE",
+                 "dosage": "1 / 125 G / MG", "forme": "POUDRE POUR SUSPENSION BUVABLE",
+                 "presentation": "1 BOITE 16 SACHET", "ppv": 168.20, "prixUnitaire": 10.51,
+                 "tauxRemboursement": 70, "princepsGenerique": "P" },
+  "generiques": [
+    { "code": "6118000041177", "nom": "ZAMOX", "presentation": "1 BOITE 24 SACHET", "ppv": 167.00,
+      "prixUnitaire": 6.96, "economiePourcent": 33, "comparaison": "PAR_UNITE",
+      "tauxRemboursement": 70, "moinsRembourse": false }
+  ],
+  "message": null,
+  "source": "Catalogue CNOPS 2014 – prix publics indicatifs"
+}
+```
+
+| Code HTTP | Cas |
+|---|---|
+| 200 | liste (éventuellement vide, avec `message`) |
+| 400 | code qui n'a pas 13 chiffres, `limit` hors de 1 à 20 |
+| 404 | code absent du catalogue |
+
+Sur le catalogue complet, 500 princeps sur 3 031 ont au moins un générique moins cher selon ces règles.
+Côté Angular, le bloc `<app-generiques [code]="…">` est affiché sur la page **Médicaments** et sous chaque
+médicament retenu de la page **Vérification**. Il ne donne pas de conseil médical : il invite à demander l'avis du
+pharmacien ou du médecin avant de changer de médicament.
+
+Code : `src/main/java/ma/secdevops/medication/generics/` — tests : `src/test/java/ma/secdevops/medication/generics/`
+(règles, service sur des lignes réelles du CNOPS, contrôleur, requêtes PostgreSQL avec Testcontainers).
