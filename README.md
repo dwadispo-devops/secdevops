@@ -32,3 +32,10 @@ API-GATEWAY doit apparaître dans la liste, avec le statut UP.
 - Tout effacer, y compris les données : `docker compose down -v`
 - Le fichier `.env` n'est jamais versionné ; seul `.env.example` l'est.
 - Le premier démarrage d'auth-service prend 30 à 40 secondes : suivre avec `docker compose logs -f auth-service` et attendre la ligne `Started AuthServiceApplication` avant de tester.
+
+## Documentation
+
+- [Sécurité](docs/SECURITE.md)
+- [US12 : réservation et QR code](docs/US12_RESERVATION_QR.md)
+- [US17 : estimation du coût de l'ordonnance](docs/US17_ESTIMATION_ORDONNANCE.md)
+- [US25 : tableau de bord pharmacien](docs/US25_TABLEAU_DE_BORD.md)

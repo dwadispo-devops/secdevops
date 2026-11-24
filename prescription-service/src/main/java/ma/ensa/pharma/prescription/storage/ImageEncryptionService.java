@@ -14,7 +14,7 @@ import java.util.Base64;
 /**
  * Chiffrement AES-256-GCM des images d'ordonnance (RG06, ENF05).
  * Clé : 32 octets en Base64, fournie par la variable d'environnement PRESCRIPTION_IMAGE_KEY
- * (fichier .env en local, variable GitLab masquée en CI). Jamais dans le code.
+ * (fichier .env en local, secret GitHub Actions en CI). Jamais dans le code.
  * Générer une clé : openssl rand -base64 32
  */
 @Service

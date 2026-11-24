@@ -48,7 +48,7 @@ Protégée par l'en-tête `X-Internal-Token`, qui doit être égal à `INTERNAL_
 | `INTERNAL_API_TOKEN` | jeton des appels internes, **secret** |
 | `EUREKA_CLIENT_SERVICEURL_DEFAULTZONE` | adresse d'Eureka |
 
-Les secrets sont dans le fichier `.env` à la racine (jamais commité) et, pour la CI/CD, dans les variables masquées de GitLab (SEC03).
+Les secrets sont dans le fichier `.env` à la racine (jamais commité) et, pour la CI/CD, dans les secrets de GitHub Actions (SEC03).
 
 ## Tests
 
