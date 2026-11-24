@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.liste.outputs.backend }}
+      frontend: ${{ steps.liste.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filtre
+        with:
+          predicate-quantifier: every
+          filters: |
+            ci: ['.github/workflows/**']
+            eureka-server: ['eureka-server/**', '!**/*.md']
+            api-gateway: ['api-gateway/**', '!**/*.md']
+            auth-service: ['auth-service/**', '!**/*.md']
+            pharmacy-service: ['pharmacy-service/**', '!**/*.md']
+            medication-service: ['medication-service/**', '!**/*.md']
+            prescription-service: ['prescription-service/**', '!**/*.md']
+            frontend: ['frontend/**', '!**/*.md']
+      - id: liste
+        env:
+          EVENEMENT: ${{ github.event_name }}
+          CHANGEMENTS: ${{ steps.filtre.outputs.changes }}
+        run: |
+          TOUS='["eureka-server","api-gateway","auth-service","pharmacy-service","medication-service","prescription-service","frontend"]'
+          if [ "$EVENEMENT" != "pull_request" ] || echo "$CHANGEMENTS" | jq -e 'index("ci")' > /dev/null; then
+            CHANGEMENTS="$TOUS"
+          fi
+          echo "backend=$(echo "$CHANGEMENTS" | jq -c '[.[] | select(. != "frontend" and . != "ci")]')" >> "$GITHUB_OUTPUT"
+          echo "frontend=$(echo "$CHANGEMENTS" | jq -c 'index("frontend") != null')" >> "$GITHUB_OUTPUT"
+          echo "À tester : $CHANGEMENTS"
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend != '[]'
+    name: test (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.backend) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: ${{ matrix.service }}/pom.xml
+      - name: Tests
+        run: mvn --batch-mode --no-transfer-progress -f "${{ matrix.service }}/pom.xml" test
+      - name: Rapports de test
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapports-${{ matrix.service }}
+          path: ${{ matrix.service }}/target/surefire-reports/
+          retention-days: 7
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npx ng test --watch=false
+      - run: npm run build
+
+  secrets:
+    if: github.event.pull_request.draft != true
+    name: scan des secrets (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: docker run --rm -u "$(id -u):$(id -g)" -v "$PWD":/repo ghcr.io/gitleaks/gitleaks:latest git /repo --no-banner --redact
+
+  resultat:
+    name: CI (résultat)
+    if: always()
+    needs: [changes, backend, frontend, secrets]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          ECHEC: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          if [ "$ECHEC" = "true" ]; then echo "Au moins un job a échoué"; exit 1; fi
+          echo "Tous les jobs exécutés sont verts"
