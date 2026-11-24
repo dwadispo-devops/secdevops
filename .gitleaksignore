@@ -2,3 +2,12 @@
 # PharmacyAdminIntegrationTest (US21) : TEST_SECRET est une clé HMAC propre au test, qui signe seulement
 # des JWT factices pendant le test. Vérifiée différente de la vraie clé JWT (JWT_SECRET, hors dépôt).
 7cdb6fd397b5c2c51cdb6db06a7856b5c6c3634f:pharmacy-service/src/test/java/ma/medidispo/pharmacy_service/admin/PharmacyAdminIntegrationTest.java:generic-api-key:39
+
+# Revue de l'historique complet avant publication sur GitHub (23/11/2026) : 4 valeurs de test ou d'exemple,
+# chacune vérifiée différente de toutes les vraies valeurs (.env, hors dépôt).
+# Clés HMAC propres aux tests (signent seulement des JWT factices pendant les tests) :
+b69ea13ce9a23481507e7a75afe84856efb882a4:prescription-service/src/test/java/ma/ensa/pharma/prescription/api/PrescriptionEstimateIntegrationTest.java:generic-api-key:28
+e2dfbac5bdb2f1782c45f899038663ee9f189a3f:pharmacy-service/src/test/resources/application.properties:generic-api-key:14
+a1850c2446e9c588f00780c966eee626ca9953e9:auth-service/src/test/resources/application.properties:generic-api-key:6
+# Mot de passe d'exemple dans la documentation (remplacé par <votre_mot_de_passe> dans la version actuelle) :
+e19257e94e3e4d7072716f49bf02c3c393c75c46:medication-service/README.md:generic-api-key:133
