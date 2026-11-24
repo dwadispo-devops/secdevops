@@ -132,7 +132,7 @@ Le microservice expose une API REST de recherche et d'autocomplétion sur le por
 
 ```powershell
 # Définir le mot de passe de la base
-$env:DB_PASSWORD="J37JO1LwooQWpaEJEuOi-89Iit8"
+$env:DB_PASSWORD="<votre_mot_de_passe>"
 
 # Lancer le microservice en mode normal (serveur web actif sur le port 8083)
 java -jar target/medication-service-0.0.1-SNAPSHOT.jar
