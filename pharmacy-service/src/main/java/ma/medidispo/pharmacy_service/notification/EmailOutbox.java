@@ -36,7 +36,7 @@ public class EmailOutbox {
         this.expediteur = expediteur; this.urlSite = urlSite;
     }
 
-    @Scheduled(fixedDelayString = "${notifications.email.delai-ms:30000}")
+    @Scheduled(fixedDelayString = "${notifications.email.delai-ms:30000}", initialDelayString = "${notifications.email.delai-ms:30000}")
     @Transactional
     public int envoyer() {
         int envoyes = 0;

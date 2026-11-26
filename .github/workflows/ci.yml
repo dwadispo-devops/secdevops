@@ -70,8 +70,31 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: ${{ matrix.service }}/pom.xml
-      - name: Tests
+      - name: Tests et couverture
         run: mvn --batch-mode --no-transfer-progress -f "${{ matrix.service }}/pom.xml" test
+      - name: Résumé de la couverture
+        if: always()
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          f="$SERVICE/target/site/jacoco/jacoco.csv"
+          [ -f "$f" ] || exit 0
+          python3 - "$SERVICE" "$f" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import csv, sys
+          s, f = sys.argv[1], sys.argv[2]
+          lm = lc = bm = bc = 0
+          for r in csv.DictReader(open(f)):
+              lm += int(r["LINE_MISSED"]); lc += int(r["LINE_COVERED"]); bm += int(r["BRANCH_MISSED"]); bc += int(r["BRANCH_COVERED"])
+          print(f"### Couverture : {s}\n\n| Lignes | Branches |\n|---|---|\n| {100*lc/max(lc+lm,1):.1f} % | {100*bc/max(bc+bm,1):.1f} % |\n")
+          PY
+      - name: Rapport de couverture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: couverture-${{ matrix.service }}
+          path: ${{ matrix.service }}/target/site/jacoco/
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Rapports de test
         if: failure()
         uses: actions/upload-artifact@v4
